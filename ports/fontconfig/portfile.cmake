@@ -9,6 +9,7 @@ vcpkg_from_gitlab(
         no-etc-symlinks.patch
         libgetopt.patch
         fix-preprocessor-clang-cl.patch
+        fix-emscripten-build.patch
 )
 
 vcpkg_add_to_path(PREPEND "${CURRENT_HOST_INSTALLED_DIR}/tools/gperf")
@@ -79,10 +80,10 @@ if(VCPKG_LIBRARY_LINKAGE STREQUAL "dynamic")
     endforeach()
 endif()
 
-vcpkg_copy_tools(
-    TOOL_NAMES fc-match fc-cat fc-list fc-pattern fc-query fc-scan fc-cache fc-validate fc-conflist
-    AUTO_CLEAN
-)
+#vcpkg_copy_tools(
+#    TOOL_NAMES fc-match fc-cat fc-list fc-pattern fc-query fc-scan fc-cache fc-validate fc-conflist
+#    AUTO_CLEAN
+#)
 
 configure_file("${CMAKE_CURRENT_LIST_DIR}/vcpkg-cmake-wrapper.cmake.in" "${CURRENT_PACKAGES_DIR}/share/${PORT}/vcpkg-cmake-wrapper.cmake" @ONLY)
 file(INSTALL "${CMAKE_CURRENT_LIST_DIR}/usage" DESTINATION "${CURRENT_PACKAGES_DIR}/share/${PORT}")

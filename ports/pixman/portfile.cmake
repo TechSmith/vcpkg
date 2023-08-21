@@ -27,6 +27,11 @@ elseif(VCPKG_TARGET_ARCHITECTURE MATCHES "mips")
             -Dmmx=disabled
             -Dsse2=disabled
             -Dssse3=disabled)
+elseif(VCPKG_TARGET_ARCHITECTURE MATCHES "wasm32")
+    list(APPEND OPTIONS
+            -Dmmx=disabled
+            -Dsse2=disabled
+            -Dssse3=disabled)
 endif()
 
 if(VCPKG_TARGET_IS_WINDOWS AND VCPKG_TARGET_ARCHITECTURE MATCHES "arm")

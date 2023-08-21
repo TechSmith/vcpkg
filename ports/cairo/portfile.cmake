@@ -13,6 +13,7 @@ vcpkg_from_gitlab(
         disable-atomic-ops-check.patch # See https://gitlab.freedesktop.org/cairo/cairo/-/issues/554
         mingw-dllexport.patch
         fix-static-missing-lib-msimg32.patch
+        fix-HAVE_FT_PALETTE_SELECT-assumption.patch
         disable-lzo.patch
         ${PATCHES}
 )
