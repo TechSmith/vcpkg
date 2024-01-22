@@ -1,0 +1,17 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index cbee5b388..6472d146b 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -553,6 +553,12 @@ if (BROTLIDEC_FOUND)
+   list(APPEND PKGCONFIG_REQUIRES_PRIVATE "libbrotlidec")
+ endif ()
+ 
++if(EMSCRIPTEN)
++   message("Detected emscripten and enabling pthreads")
++   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread")
++   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
++   set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -pthread")
++endif()
+ 
+ # Installation
+ include(GNUInstallDirs)
