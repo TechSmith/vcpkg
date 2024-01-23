@@ -10,6 +10,7 @@ vcpkg_from_github(
         0002-skip-building-examples.patch
         0003-build-static-or-shared-not-both.patch
         0004-android-and-mingw-fixes.patch
+        0005-add-emscripten-pthread.patch
 )
 
 # This is generated during the cmake build

@@ -1,0 +1,18 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index b412dc7..82b2232 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -190,6 +190,13 @@ if(NOT SKIP_INSTALL_FILES AND NOT SKIP_INSTALL_ALL )
+     install(FILES ${ZLIB_PC} DESTINATION "${INSTALL_PKGCONFIG_DIR}")
+ endif()
+ 
++if(EMSCRIPTEN)
++   message("Detected emscripten and enabling pthreads")
++   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread")
++   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
++   set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -pthread")
++endif()
++
+ #============================================================================
+ # Example binaries
+ #============================================================================
