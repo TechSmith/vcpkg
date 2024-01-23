@@ -1,0 +1,17 @@
+diff --git a/expat/CMakeLists.txt b/expat/CMakeLists.txt
+index 2b4c13c5..1d226dac 100644
+--- a/expat/CMakeLists.txt
++++ b/expat/CMakeLists.txt
+@@ -313,6 +313,12 @@ if (EXPAT_WARNINGS_AS_ERRORS)
+         set(EXTRA_COMPILE_FLAGS "${EXTRA_COMPILE_FLAGS} -Werror")
+     endif()
+ endif()
++if(EMSCRIPTEN)
++   message("Detected emscripten and enabling pthreads")
++   set(EXTRA_COMPILE_FLAGS "${EXTRA_COMPILE_FLAGS} -pthread")
++   set(EXTRA_COMPILE_FLAGS "${EXTRA_COMPILE_FLAGS} -pthread")
++   set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -pthread")
++endif()
+ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${EXTRA_COMPILE_FLAGS}")
+ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EXTRA_COMPILE_FLAGS}")
+ 

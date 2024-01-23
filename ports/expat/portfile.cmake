@@ -7,6 +7,8 @@ vcpkg_from_github(
     REF "${REF}"
     SHA512 779f0d0f3f2d8b33db0fd044864ab5ab1a40f20501f792fe90ad0d18de536c4765c3749f120e21fec11a0e6c89af1dc576d1fe261c871ca44a594f7b61fd1d9e
     HEAD_REF master
+    PATCHES
+       add-emscripten-pthread.patch
 )
 
 string(COMPARE EQUAL "${VCPKG_LIBRARY_LINKAGE}" "dynamic" EXPAT_LINKAGE)
