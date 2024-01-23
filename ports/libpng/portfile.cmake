@@ -40,6 +40,7 @@ vcpkg_from_github(
         fix-export-targets.patch
         pkgconfig.patch
         fix-msa-support-for-mips.patch
+        add-emscripten-pthread.patch
 )
 
 string(COMPARE EQUAL "${VCPKG_LIBRARY_LINKAGE}" "dynamic" PNG_SHARED)
