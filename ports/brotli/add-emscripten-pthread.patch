@@ -1,0 +1,18 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 4ff3401..b8ef45b 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -26,6 +26,13 @@ else()
+   message("-- Compiler is not EMSCRIPTEN")
+ endif()
+ 
++if(EMSCRIPTEN)
++  message("Emscripten mode")
++  set(CMAKE_C_FLAGS " ${CMAKE_C_FLAGS} -pthread")
++  set(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -pthread")
++  set(CMAKE_EXE_LINKER_FLAGS " ${CMAKE_EXE_LINKER_FLAGS} -pthread")
++endif()
++
+ # If Brotli is being bundled in another project, we don't want to
+ # install anything.  However, we want to let people override this, so
+ # we'll use the BROTLI_BUNDLED_MODE variable to let them do that; just

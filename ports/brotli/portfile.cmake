@@ -8,6 +8,7 @@ vcpkg_from_github(
         install.patch
         fix-arm-uwp.patch
         pkgconfig.patch
+        add-emscripten-pthread.patch
 )
 
 vcpkg_cmake_configure(
