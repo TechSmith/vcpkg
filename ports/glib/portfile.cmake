@@ -5,14 +5,26 @@ vcpkg_download_distfile(GLIB_ARCHIVE
     SHA512 291b8913918d411b679442b888f56893a857a77decfe428086c8bd1da1949498938ddb0bf254ed99d192e4a09b5e8cee1905fd6932ee642463fb229cac7c226e
 )
 
-vcpkg_extract_source_archive(SOURCE_PATH
-    ARCHIVE "${GLIB_ARCHIVE}"
-    PATCHES
-        use-libiconv-on-windows.patch
-        libintl.patch
-        fix-build-race-on-gio.patch # https://gitlab.gnome.org/GNOME/glib/-/merge_requests/3512
-        tsc-allow-threadpriority-to-fail-windows.patch 
-)
+if(VCPKG_HOST_IS_EMSCRIPTEN)
+   vcpkg_extract_source_archive(SOURCE_PATH
+       ARCHIVE "${GLIB_ARCHIVE}"
+       PATCHES
+           use-libiconv-on-windows.patch
+           libintl.patch
+           fix-build-race-on-gio.patch # https://gitlab.gnome.org/GNOME/glib/-/merge_requests/3512
+           tsc-allow-threadpriority-to-fail-windows.patch 
+           emscripten.patch
+   )
+else()
+   vcpkg_extract_source_archive(SOURCE_PATH
+       ARCHIVE "${GLIB_ARCHIVE}"
+       PATCHES
+           use-libiconv-on-windows.patch
+           libintl.patch
+           fix-build-race-on-gio.patch # https://gitlab.gnome.org/GNOME/glib/-/merge_requests/3512
+           tsc-allow-threadpriority-to-fail-windows.patch 
+   )
+endif()
 
 vcpkg_list(SET OPTIONS)
 if (selinux IN_LIST FEATURES)
@@ -51,6 +63,7 @@ vcpkg_configure_meson(
         -Dtests=false
         -Dxattr=false
 )
+
 vcpkg_install_meson(ADD_BIN_TO_PATH)
 vcpkg_copy_pdbs()
 
@@ -67,29 +80,32 @@ foreach(script IN LISTS GLIB_SCRIPTS)
     file(REMOVE "${CURRENT_PACKAGES_DIR}/debug/bin/${script}")
 endforeach()
 
-set(GLIB_TOOLS
-    gapplication
-    gdbus
-    gio
-    gio-querymodules
-    glib-compile-resources
-    glib-compile-schemas
-    gobject-query
-    gresource
-    gsettings
-    gtester
-)
-if(VCPKG_TARGET_IS_WINDOWS)
-    list(REMOVE_ITEM GLIB_TOOLS gapplication gtester)
-    if(VCPKG_TARGET_ARCHITECTURE MATCHES "x64|arm64")
-        list(APPEND GLIB_TOOLS gspawn-win64-helper gspawn-win64-helper-console)
-    elseif(VCPKG_TARGET_ARCHITECTURE STREQUAL "x86")
-        list(APPEND GLIB_TOOLS gspawn-win32-helper gspawn-win32-helper-console)
-    endif()
-elseif(VCPKG_TARGET_IS_OSX)
-    list(REMOVE_ITEM GLIB_TOOLS gapplication)
+if(NOT VCPKG_TARGET_IS_EMSCRIPTEN)
+   set(GLIB_TOOLS
+       gapplication
+       gdbus
+       gio
+       gio-querymodules
+       glib-compile-resources
+       glib-compile-schemas
+       gobject-query
+       gresource
+       gsettings
+       gtester
+   )
+   if(VCPKG_TARGET_IS_WINDOWS)
+       list(REMOVE_ITEM GLIB_TOOLS gapplication gtester)
+       if(VCPKG_TARGET_ARCHITECTURE MATCHES "x64|arm64")
+           list(APPEND GLIB_TOOLS gspawn-win64-helper gspawn-win64-helper-console)
+       elseif(VCPKG_TARGET_ARCHITECTURE STREQUAL "x86")
+           list(APPEND GLIB_TOOLS gspawn-win32-helper gspawn-win32-helper-console)
+       endif()
+   elseif(VCPKG_TARGET_IS_OSX)
+       list(REMOVE_ITEM GLIB_TOOLS gapplication)
+   endif()
+
+   vcpkg_copy_tools(TOOL_NAMES ${GLIB_TOOLS} AUTO_CLEAN)
 endif()
-vcpkg_copy_tools(TOOL_NAMES ${GLIB_TOOLS} AUTO_CLEAN)
 
 vcpkg_fixup_pkgconfig()
 
@@ -115,21 +131,25 @@ foreach(pc_prefix IN LISTS pc_replace_intl_path)
     endif()
 endforeach()
 
-vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/lib/pkgconfig/gio-2.0.pc" "\${bindir}" "\${prefix}/tools/${PORT}")
-vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/lib/pkgconfig/glib-2.0.pc" "\${bindir}" "\${prefix}/tools/${PORT}")
-if(NOT VCPKG_BUILD_TYPE)
-    vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/debug/lib/pkgconfig/gio-2.0.pc" "\${bindir}" "\${prefix}/../tools/${PORT}")
-    vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/debug/lib/pkgconfig/glib-2.0.pc" "\${bindir}" "\${prefix}/../tools/${PORT}")
+if(NOT VCPKG_TARGET_IS_EMSCRIPTEN)
+   vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/lib/pkgconfig/gio-2.0.pc" "\${bindir}" "\${prefix}/tools/${PORT}")
+   vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/lib/pkgconfig/glib-2.0.pc" "\${bindir}" "\${prefix}/tools/${PORT}")
+   if(NOT VCPKG_BUILD_TYPE)
+       vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/debug/lib/pkgconfig/gio-2.0.pc" "\${bindir}" "\${prefix}/../tools/${PORT}")
+       vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/debug/lib/pkgconfig/glib-2.0.pc" "\${bindir}" "\${prefix}/../tools/${PORT}")
+   endif()
 endif()
 
 # Fix python scripts
 set(_file "${CURRENT_PACKAGES_DIR}/tools/${PORT}/gdbus-codegen")
+
 file(READ "${_file}" _contents)
 string(REPLACE "elif os.path.basename(filedir) == 'bin':" "elif os.path.basename(filedir) == 'tools':" _contents "${_contents}")
 string(REPLACE "path = os.path.join(filedir, '..', 'share', 'glib-2.0')" "path = os.path.join(filedir, '../..', 'share', 'glib-2.0')" _contents "${_contents}")
 string(REPLACE "path = os.path.join(filedir, '..')" "path = os.path.join(filedir, '../../share/glib-2.0')" _contents "${_contents}")
 string(REPLACE "path = os.path.join('${CURRENT_PACKAGES_DIR}/share', 'glib-2.0')" "path = os.path.join('unuseable/share', 'glib-2.0')" _contents "${_contents}")
 file(WRITE "${_file}" "${_contents}")
+
 
 if(EXISTS "${CURRENT_PACKAGES_DIR}/tools/${PORT}/glib-gettextize")
     vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/tools/${PORT}/glib-gettextize" "${CURRENT_PACKAGES_DIR}" "`dirname $0`/../..")
