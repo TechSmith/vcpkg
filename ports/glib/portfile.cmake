@@ -5,7 +5,7 @@ vcpkg_download_distfile(GLIB_ARCHIVE
     SHA512 291b8913918d411b679442b888f56893a857a77decfe428086c8bd1da1949498938ddb0bf254ed99d192e4a09b5e8cee1905fd6932ee642463fb229cac7c226e
 )
 
-if(VCPKG_HOST_IS_EMSCRIPTEN)
+if(VCPKG_TARGET_IS_EMSCRIPTEN)
    vcpkg_extract_source_archive(SOURCE_PATH
        ARCHIVE "${GLIB_ARCHIVE}"
        PATCHES
@@ -81,30 +81,34 @@ foreach(script IN LISTS GLIB_SCRIPTS)
 endforeach()
 
 if(NOT VCPKG_TARGET_IS_EMSCRIPTEN)
-   set(GLIB_TOOLS
-       gapplication
-       gdbus
-       gio
-       gio-querymodules
-       glib-compile-resources
-       glib-compile-schemas
-       gobject-query
-       gresource
-       gsettings
-       gtester
-   )
-   if(VCPKG_TARGET_IS_WINDOWS)
-       list(REMOVE_ITEM GLIB_TOOLS gapplication gtester)
-       if(VCPKG_TARGET_ARCHITECTURE MATCHES "x64|arm64")
-           list(APPEND GLIB_TOOLS gspawn-win64-helper gspawn-win64-helper-console)
-       elseif(VCPKG_TARGET_ARCHITECTURE STREQUAL "x86")
-           list(APPEND GLIB_TOOLS gspawn-win32-helper gspawn-win32-helper-console)
-       endif()
-   elseif(VCPKG_TARGET_IS_OSX)
-       list(REMOVE_ITEM GLIB_TOOLS gapplication)
-   endif()
-
-   vcpkg_copy_tools(TOOL_NAMES ${GLIB_TOOLS} AUTO_CLEAN)
+    set(GLIB_TOOLS
+        gapplication
+        gdbus
+        gio
+        gio-querymodules
+        glib-compile-resources
+        glib-compile-schemas
+        gobject-query
+        gresource
+        gsettings
+        gtester
+    )
+    if(VCPKG_TARGET_IS_WINDOWS)
+        list(REMOVE_ITEM GLIB_TOOLS gapplication gtester)
+        if(VCPKG_TARGET_ARCHITECTURE MATCHES "x64|arm64")
+            list(APPEND GLIB_TOOLS gspawn-win64-helper gspawn-win64-helper-console)
+        elseif(VCPKG_TARGET_ARCHITECTURE STREQUAL "x86")
+            list(APPEND GLIB_TOOLS gspawn-win32-helper gspawn-win32-helper-console)
+        endif()
+    elseif(VCPKG_TARGET_IS_OSX)
+        list(REMOVE_ITEM GLIB_TOOLS gapplication)
+    endif()
+ 
+    vcpkg_copy_tools(TOOL_NAMES ${GLIB_TOOLS} AUTO_CLEAN)
+else()
+    # Since Emscripten doesn't build any of the tools (at least not yet), delete
+    # the bin directory to get rid of vcpkg complaints.
+    file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/bin" "${CURRENT_PACKAGES_DIR}/debug/bin")
 endif()
 
 vcpkg_fixup_pkgconfig()
@@ -149,7 +153,6 @@ string(REPLACE "path = os.path.join(filedir, '..', 'share', 'glib-2.0')" "path =
 string(REPLACE "path = os.path.join(filedir, '..')" "path = os.path.join(filedir, '../../share/glib-2.0')" _contents "${_contents}")
 string(REPLACE "path = os.path.join('${CURRENT_PACKAGES_DIR}/share', 'glib-2.0')" "path = os.path.join('unuseable/share', 'glib-2.0')" _contents "${_contents}")
 file(WRITE "${_file}" "${_contents}")
-
 
 if(EXISTS "${CURRENT_PACKAGES_DIR}/tools/${PORT}/glib-gettextize")
     vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/tools/${PORT}/glib-gettextize" "${CURRENT_PACKAGES_DIR}" "`dirname $0`/../..")
