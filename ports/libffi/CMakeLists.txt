@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.9)
 project(libffi C ASM)
 
-set(KNOWN_PROCESSORS x86 x86_64 amd64 arm arm64 i386 i686 armv7l armv7-a aarch64 mips64el riscv32 riscv64)
+set(KNOWN_PROCESSORS x86 x86_64 amd64 arm arm64 i386 i686 armv7l armv7-a aarch64 mips64el riscv32 riscv64 wasm32)
 
 string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" lower_system_processor)
 
@@ -9,7 +9,9 @@ if(NOT lower_system_processor IN_LIST KNOWN_PROCESSORS)
     message(FATAL_ERROR "Unknown processor: ${CMAKE_SYSTEM_PROCESSOR}")
 endif()
 
-if(CMAKE_SYSTEM_NAME MATCHES "Windows" AND VCPKG_TARGET_ARCHITECTURE STREQUAL "arm")
+if(CMAKE_SYSTEM_NAME MATCHES "Emscripten")
+    set(TARGET WASM32)
+elseif(CMAKE_SYSTEM_NAME MATCHES "Windows" AND VCPKG_TARGET_ARCHITECTURE STREQUAL "arm")
     set(TARGET ARM_WIN32)
 elseif(CMAKE_SYSTEM_NAME MATCHES "Windows" AND VCPKG_TARGET_ARCHITECTURE STREQUAL "arm64")
     set(TARGET ARM_WIN64)
@@ -48,7 +50,9 @@ set(FFI_EXEC_TRAMPOLINE_TABLE 0)
 configure_file(include/ffi.h.in ${CMAKE_BINARY_DIR}/include/ffi.h)
 file(COPY ${FFI_CONFIG_FILE} DESTINATION ${CMAKE_BINARY_DIR})
 
-if ("${TARGET}" STREQUAL "ARM_WIN64" OR "${TARGET}" STREQUAL "ARM64")
+if ("${TARGET}" STREQUAL "WASM32")
+    file(COPY src/wasm32/ffitarget.h DESTINATION ${CMAKE_BINARY_DIR}/include)
+elseif ("${TARGET}" STREQUAL "ARM_WIN64" OR "${TARGET}" STREQUAL "ARM64")
     file(COPY src/aarch64/ffitarget.h DESTINATION ${CMAKE_BINARY_DIR}/include)
 elseif ("${TARGET}" STREQUAL "ARM_WIN32" OR "${TARGET}" STREQUAL "ARM")
     file(COPY src/arm/ffitarget.h DESTINATION ${CMAKE_BINARY_DIR}/include)
@@ -75,7 +79,11 @@ set(FFI_SOURCES
     src/types.c
     src/tramp.c)
 
-if ("${TARGET}" STREQUAL "ARM_WIN64" OR "${TARGET}" STREQUAL "ARM64")
+if("${TARGET}" STREQUAL "WASM32")
+    set(FFI_SOURCES
+	 ${FFI_SOURCES}
+	 src/wasm32/ffi.c)
+elseif ("${TARGET}" STREQUAL "ARM_WIN64" OR "${TARGET}" STREQUAL "ARM64")
     set(FFI_SOURCES
         ${FFI_SOURCES}
         src/aarch64/ffi.c)
@@ -162,7 +170,9 @@ if("${TARGET}" STREQUAL "X86")
     set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -m32")
 endif()
 
-if("${TARGET}" STREQUAL "X86" OR "${TARGET}" STREQUAL "X86_DARWIN")
+if("${TARGET}" MATCHES "WASM32")
+    
+elseif("${TARGET}" STREQUAL "X86" OR "${TARGET}" STREQUAL "X86_DARWIN")
     add_assembly(src/x86/sysv.S)
 elseif("${TARGET}" STREQUAL "X86_64")
     add_assembly(src/x86/unix64.S)
