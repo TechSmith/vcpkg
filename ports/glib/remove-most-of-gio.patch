@@ -1,0 +1,1267 @@
+diff --git a/gio/gio.h b/gio/gio.h
+index c17657d..2fd1d73 100644
+--- a/gio/gio.h
++++ b/gio/gio.h
+@@ -25,6 +25,11 @@
+ 
+ #define __GIO_GIO_H_INSIDE__
+ 
++#ifdef __EMSCRIPTEN__
++#include <glib-object.h>
++#include <gio/glistmodel.h>
++#else
++
+ #include <gio/giotypes.h>
+ 
+ #include <gio/gaction.h>
+@@ -183,4 +188,5 @@
+ 
+ #undef __GIO_GIO_H_INSIDE__
+ 
++#endif // __EMSCRIPTEN__
+ #endif /* __G_IO_H__ */
+diff --git a/gio/gioenumtypes.h.template b/gio/gioenumtypes.h.template
+index c75a3b4..4f734f6 100644
+--- a/gio/gioenumtypes.h.template
++++ b/gio/gioenumtypes.h.template
+@@ -24,7 +24,10 @@
+ #define __GIO_ENUM_TYPES_H__
+ 
+ #include <glib-object.h>
++
++#ifndef __EMSCRIPTEN__
+ #include <gio/gio-visibility.h>
++#endif
+ 
+ G_BEGIN_DECLS
+ /*** END file-header ***/
+diff --git a/gio/glistmodel.c b/gio/glistmodel.c
+index 3f9b85e..2a9f321 100644
+--- a/gio/glistmodel.c
++++ b/gio/glistmodel.c
+@@ -24,6 +24,8 @@
+ 
+ #include "config.h"
+ 
++#include "gio.h"
++// #include "../glib.h"
+ #include "glistmodel.h"
+ #include "glibintl.h"
+ #include "gmarshal-internal.h"
+@@ -136,8 +138,8 @@ G_DEFINE_INTERFACE (GListModel, g_list_model, G_TYPE_OBJECT)
+  * using the following functions.
+  **/
+ 
+-static guint g_list_model_changed_signal;
+-
++// static guint g_list_model_changed_signal;
++//
+ static void
+ g_list_model_default_init (GListModelInterface *iface)
+ {
+@@ -157,19 +159,20 @@ g_list_model_default_init (GListModelInterface *iface)
+    *
+    * Since: 2.44
+    */
+-  g_list_model_changed_signal = g_signal_new (I_("items-changed"),
+-                                              G_TYPE_LIST_MODEL,
+-                                              G_SIGNAL_RUN_LAST,
+-                                              0,
+-                                              NULL, NULL,
+-                                              _g_cclosure_marshal_VOID__UINT_UINT_UINT,
+-                                              G_TYPE_NONE,
+-                                              3, G_TYPE_UINT, G_TYPE_UINT, G_TYPE_UINT);
+-  g_signal_set_va_marshaller (g_list_model_changed_signal,
+-                              G_TYPE_FROM_INTERFACE (iface),
+-                              _g_cclosure_marshal_VOID__UINT_UINT_UINTv);
++  // g_list_model_changed_signal = g_signal_new (I_("items-changed"),
++  //                                             G_TYPE_LIST_MODEL,
++  //                                             G_SIGNAL_RUN_LAST,
++  //                                             0,
++  //                                             NULL, NULL,
++  //                                             _g_cclosure_marshal_VOID__UINT_UINT_UINT,
++  //                                             G_TYPE_NONE,
++  //                                             3, G_TYPE_UINT, G_TYPE_UINT, G_TYPE_UINT);
++  // g_signal_set_va_marshaller (g_list_model_changed_signal,
++  //                             G_TYPE_FROM_INTERFACE (iface),
++  //                             _g_cclosure_marshal_VOID__UINT_UINT_UINTv);
+ }
+ 
++
+ /**
+  * g_list_model_get_item_type:
+  * @list: a #GListModel
+@@ -318,5 +321,6 @@ g_list_model_items_changed (GListModel *list,
+ {
+   g_return_if_fail (G_IS_LIST_MODEL (list));
+ 
+-  g_signal_emit (list, g_list_model_changed_signal, 0, position, removed, added);
++  //printf("__FUNCTION__ called. Unfortunately, this is not implemented in this Emscripten build.\n");
++  //g_signal_emit (list, g_list_model_changed_signal, 0, position, removed, added);
+ }
+diff --git a/gio/glistmodel.h b/gio/glistmodel.h
+index a96e3ce..4ae0e47 100644
+--- a/gio/glistmodel.h
++++ b/gio/glistmodel.h
+@@ -29,12 +29,12 @@
+ #error "Only <gio/gio.h> can be included directly."
+ #endif
+ 
+-#include <gio/giotypes.h>
++//#include <glib/glib.h>
+ 
+ G_BEGIN_DECLS
+ 
+ #define G_TYPE_LIST_MODEL g_list_model_get_type ()
+-GIO_AVAILABLE_IN_2_44
++//GIO_AVAILABLE_IN_2_44
+ G_DECLARE_INTERFACE(GListModel, g_list_model, G, LIST_MODEL, GObject)
+ 
+ struct _GListModelInterface
+@@ -49,21 +49,21 @@ struct _GListModelInterface
+                                  guint       position);
+ };
+ 
+-GIO_AVAILABLE_IN_2_44
++//GIO_AVAILABLE_IN_2_44
+ GType                   g_list_model_get_item_type                      (GListModel *list);
+ 
+-GIO_AVAILABLE_IN_2_44
++//GIO_AVAILABLE_IN_2_44
+ guint                   g_list_model_get_n_items                        (GListModel *list);
+ 
+-GIO_AVAILABLE_IN_2_44
++//GIO_AVAILABLE_IN_2_44
+ gpointer                g_list_model_get_item                           (GListModel *list,
+                                                                          guint       position);
+ 
+-GIO_AVAILABLE_IN_2_44
++//GIO_AVAILABLE_IN_2_44
+ GObject *               g_list_model_get_object                         (GListModel *list,
+                                                                          guint       position);
+ 
+-GIO_AVAILABLE_IN_2_44
++//GIO_AVAILABLE_IN_2_44
+ void                    g_list_model_items_changed                      (GListModel *list,
+                                                                          guint       position,
+                                                                          guint       removed,
+diff --git a/gio/meson.build b/gio/meson.build
+index f181242..9acdd66 100644
+--- a/gio/meson.build
++++ b/gio/meson.build
+@@ -1,7 +1,6 @@
+ gio_c_args = [
+   '-DG_LOG_DOMAIN="GLib-GIO"',
+   '-DGIO_LAUNCH_DESKTOP="@0@"'.format(glib_prefix / multiarch_libexecdir / 'gio-launch-desktop'),
+-  '-DGIO_MODULE_DIR="@0@"'.format(glib_giomodulesdir),
+   '-DLOCALSTATEDIR="@0@"'.format(glib_localstatedir),
+ ]
+ 
+@@ -9,14 +8,23 @@ gio_c_args_internal = [
+   '-DGIO_COMPILATION',
+ ]
+ 
+-# Install empty glib_giomodulesdir
+-install_emptydir(glib_giomodulesdir)
++if host_system  != 'emscripten'
++  gio_c_args += [
++    '-DGIO_MODULE_DIR="@0@"'.format(glib_giomodulesdir),
++  ] 
++
++  # Install empty glib_giomodulesdir
++  install_emptydir(glib_giomodulesdir)
++endif
+ 
+ gio_includedir = glib_includedir / 'gio'
+ 
+-gnetworking_h_conf = configuration_data()
+ 
+-gnetworking_h_nameser_compat_include = ''
++if host_system  != 'emscripten'
++  gnetworking_h_conf = configuration_data()
++
++  gnetworking_h_nameser_compat_include = ''
++endif
+ 
+ if host_system not in ['windows', 'android']
+   # Don't check for C_IN on Android since it does not define it in public
+@@ -30,7 +38,7 @@ if host_system not in ['windows', 'android']
+                       #include <arpa/nameser_compat.h>
+                       int qclass = C_IN;''',
+                    name : 'arpa/nameser_compat.h needed for C_IN')
+-      gnetworking_h_nameser_compat_include = '#include <arpa/nameser_compat.h>'
++    # gnetworking_h_nameser_compat_include = '#include <arpa/nameser_compat.h>'
+     else
+       error('Could not find required includes for ARPA C_IN')
+     endif
+@@ -168,177 +176,180 @@ if host_system == 'android'
+   endif
+ endif
+ 
+-gnetworking_h_conf.set('NAMESER_COMPAT_INCLUDE', gnetworking_h_nameser_compat_include)
+-
+-gnetworking_h = configure_file(input : 'gnetworking.h.in',
+-                               output : 'gnetworking.h',
+-                               install_dir : gio_includedir,
+-                               configuration : gnetworking_h_conf)
+-
+-gdbus_headers = files(
+-  'gdbusauthobserver.h',
+-  'gcredentials.h',
+-  'gdbusutils.h',
+-  'gdbuserror.h',
+-  'gdbusaddress.h',
+-  'gdbusconnection.h',
+-  'gdbusmessage.h',
+-  'gdbusnameowning.h',
+-  'gdbusnamewatching.h',
+-  'gdbusproxy.h',
+-  'gdbusintrospection.h',
+-  'gdbusmethodinvocation.h',
+-  'gdbusserver.h',
+-  'gdbusinterface.h',
+-  'gdbusinterfaceskeleton.h',
+-  'gdbusobject.h',
+-  'gdbusobjectskeleton.h',
+-  'gdbusobjectproxy.h',
+-  'gdbusobjectmanager.h',
+-  'gdbusobjectmanagerclient.h',
+-  'gdbusobjectmanagerserver.h',
+-  'gtestdbus.h',
+-)
+-
+-gdbus_sources = files(
+-  'gdbusutils.c',
+-  'gdbusaddress.c',
+-  'gdbusauthobserver.c',
+-  'gdbusauth.c',
+-  'gdbusauthmechanism.c',
+-  'gdbusauthmechanismanon.c',
+-  'gdbusauthmechanismexternal.c',
+-  'gdbusauthmechanismsha1.c',
+-  'gdbuserror.c',
+-  'gdbusconnection.c',
+-  'gdbusmessage.c',
+-  'gdbusnameowning.c',
+-  'gdbusnamewatching.c',
+-  'gdbusproxy.c',
+-  'gdbusprivate.c',
+-  'gdbusintrospection.c',
+-  'gdbusmethodinvocation.c',
+-  'gdbusserver.c',
+-  'gdbusinterface.c',
+-  'gdbusinterfaceskeleton.c',
+-  'gdbusobject.c',
+-  'gdbusobjectskeleton.c',
+-  'gdbusobjectproxy.c',
+-  'gdbusobjectmanager.c',
+-  'gdbusobjectmanagerclient.c',
+-  'gdbusobjectmanagerserver.c',
+-  'gtestdbus.c',
+-)
+-
+-# Generate gdbus-codegen
+-subdir('gdbus-2.0/codegen')
+-
+-# Generate xdp-dbus.{c,h}
+-xdp_dbus_generated = custom_target('xdp-dbus',
+-    input : ['org.freedesktop.portal.Documents.xml',
+-             'org.freedesktop.portal.OpenURI.xml',
+-             'org.freedesktop.portal.ProxyResolver.xml',
+-             'org.freedesktop.portal.Trash.xml'],
+-    output : ['xdp-dbus.h', 'xdp-dbus.c'],
+-    depend_files : gdbus_codegen_built_files,
+-    command : [python, gdbus_codegen,
+-               '--interface-prefix', 'org.freedesktop.portal.',
+-               '--output-directory', '@OUTDIR@',
+-               '--generate-c-code', 'xdp-dbus',
+-               '--c-namespace', 'GXdp',
+-               '@INPUT@'])
+-
+-# Generate gdbus-generated.{c,h}
+-gdbus_daemon_generated = custom_target('gdbus-daemon-generated',
+-    input : ['dbus-daemon.xml'],
+-    output : ['gdbus-daemon-generated.h', 'gdbus-daemon-generated.c'],
+-    depend_files : gdbus_codegen_built_files,
+-    command : [python, gdbus_codegen,
+-               '--interface-prefix', 'org.',
+-               '--output-directory', '@OUTDIR@',
+-               '--generate-c-code', 'gdbus-daemon-generated',
+-               '--c-namespace', '_G', '@INPUT@'])
+-
+-settings_headers = files(
+-  'gsettingsbackend.h',
+-  'gsettingsschema.h',
+-  'gsettings.h',
+-)
+-
+-settings_sources = files(
+-  'gdelayedsettingsbackend.c',
+-  'gkeyfilesettingsbackend.c',
+-  'gmemorysettingsbackend.c',
+-  'gnullsettingsbackend.c',
+-  'gsettingsbackend.c',
+-  'gsettingsschema.c',
+-  'gsettings-mapping.c',
+-  'gsettings.c',
+-)
+ 
+-if host_system == 'windows'
+-  settings_sources += files('gregistrysettingsbackend.c')
+-endif
+-
+-application_headers = files(
+-  'gapplication.h',
+-  'gapplicationcommandline.h',
+-
+-  'gactiongroup.h',
+-  'gactionmap.h',
+-  'gsimpleactiongroup.h',
+-  'gremoteactiongroup.h',
+-  'gactiongroupexporter.h',
+-  'gdbusactiongroup.h',
+-  'gaction.h',
+-  'gpropertyaction.h',
+-  'gsimpleaction.h',
+-
+-  'gmenumodel.h',
+-  'gmenu.h',
+-  'gmenuexporter.h',
+-  'gdbusmenumodel.h',
+-  'gnotification.h',
+-)
+-
+-application_sources = files(
+-  'gapplication.c',
+-  'gapplicationcommandline.c',
+-  'gapplicationimpl-dbus.c',
+-
+-  'gactiongroup.c',
+-  'gactionmap.c',
+-  'gsimpleactiongroup.c',
+-  'gremoteactiongroup.c',
+-  'gactiongroupexporter.c',
+-  'gdbusactiongroup.c',
+-  'gaction.c',
+-  'gpropertyaction.c',
+-  'gsimpleaction.c',
+-
+-  'gmenumodel.c',
+-  'gmenu.c',
+-  'gmenuexporter.c',
+-  'gdbusmenumodel.c',
+-  'gnotification.c',
+-  'gnotificationbackend.c',
+-)
+-
+-local_sources = files(
+-  'ghttpproxy.c',
+-  'glocalfile.c',
+-  'glocalfileenumerator.c',
+-  'glocalfileinfo.c',
+-  'glocalfileinputstream.c',
+-  'glocalfilemonitor.c',
+-  'glocalfileoutputstream.c',
+-  'glocalfileiostream.c',
+-  'glocalvfs.c',
+-  'gsocks4proxy.c',
+-  'gsocks4aproxy.c',
+-  'gsocks5proxy.c',
+-  'thumbnail-verify.c',
+-)
++if host_system  != 'emscripten'
++  gnetworking_h_conf.set('NAMESER_COMPAT_INCLUDE', gnetworking_h_nameser_compat_include)
++ 
++  gnetworking_h = configure_file(input : 'gnetworking.h.in',
++                                 output : 'gnetworking.h',
++                                 install_dir : gio_includedir,
++                                 configuration : gnetworking_h_conf)
++ 
++  gdbus_headers = files(
++    'gdbusauthobserver.h',
++    'gcredentials.h',
++    'gdbusutils.h',
++    'gdbuserror.h',
++    'gdbusaddress.h',
++    'gdbusconnection.h',
++    'gdbusmessage.h',
++    'gdbusnameowning.h',
++    'gdbusnamewatching.h',
++    'gdbusproxy.h',
++    'gdbusintrospection.h',
++    'gdbusmethodinvocation.h',
++    'gdbusserver.h',
++    'gdbusinterface.h',
++    'gdbusinterfaceskeleton.h',
++    'gdbusobject.h',
++    'gdbusobjectskeleton.h',
++    'gdbusobjectproxy.h',
++    'gdbusobjectmanager.h',
++    'gdbusobjectmanagerclient.h',
++    'gdbusobjectmanagerserver.h',
++    'gtestdbus.h',
++  )
++ 
++  gdbus_sources = files(
++    'gdbusutils.c',
++    'gdbusaddress.c',
++    'gdbusauthobserver.c',
++    'gdbusauth.c',
++    'gdbusauthmechanism.c',
++    'gdbusauthmechanismanon.c',
++    'gdbusauthmechanismexternal.c',
++    'gdbusauthmechanismsha1.c',
++    'gdbuserror.c',
++    'gdbusconnection.c',
++    'gdbusmessage.c',
++    'gdbusnameowning.c',
++    'gdbusnamewatching.c',
++    'gdbusproxy.c',
++    'gdbusprivate.c',
++    'gdbusintrospection.c',
++    'gdbusmethodinvocation.c',
++    'gdbusserver.c',
++    'gdbusinterface.c',
++    'gdbusinterfaceskeleton.c',
++    'gdbusobject.c',
++    'gdbusobjectskeleton.c',
++    'gdbusobjectproxy.c',
++    'gdbusobjectmanager.c',
++    'gdbusobjectmanagerclient.c',
++    'gdbusobjectmanagerserver.c',
++    'gtestdbus.c',
++  )
++ 
++  # Generate gdbus-codegen
++  subdir('gdbus-2.0/codegen')
++ 
++  # Generate xdp-dbus.{c,h}
++  xdp_dbus_generated = custom_target('xdp-dbus',
++      input : ['org.freedesktop.portal.Documents.xml',
++               'org.freedesktop.portal.OpenURI.xml',
++               'org.freedesktop.portal.ProxyResolver.xml',
++               'org.freedesktop.portal.Trash.xml'],
++      output : ['xdp-dbus.h', 'xdp-dbus.c'],
++      depend_files : gdbus_codegen_built_files,
++      command : [python, gdbus_codegen,
++                 '--interface-prefix', 'org.freedesktop.portal.',
++                 '--output-directory', '@OUTDIR@',
++                 '--generate-c-code', 'xdp-dbus',
++                 '--c-namespace', 'GXdp',
++                 '@INPUT@'])
++ 
++  # Generate gdbus-generated.{c,h}
++  gdbus_daemon_generated = custom_target('gdbus-daemon-generated',
++      input : ['dbus-daemon.xml'],
++      output : ['gdbus-daemon-generated.h', 'gdbus-daemon-generated.c'],
++      depend_files : gdbus_codegen_built_files,
++      command : [python, gdbus_codegen,
++                 '--interface-prefix', 'org.',
++                 '--output-directory', '@OUTDIR@',
++                 '--generate-c-code', 'gdbus-daemon-generated',
++                 '--c-namespace', '_G', '@INPUT@'])
++ 
++  settings_headers = files(
++    'gsettingsbackend.h',
++    'gsettingsschema.h',
++    'gsettings.h',
++  )
++ 
++  settings_sources = files(
++    'gdelayedsettingsbackend.c',
++    'gkeyfilesettingsbackend.c',
++    'gmemorysettingsbackend.c',
++    'gnullsettingsbackend.c',
++    'gsettingsbackend.c',
++    'gsettingsschema.c',
++    'gsettings-mapping.c',
++    'gsettings.c',
++  )
++ 
++  if host_system == 'windows'
++    settings_sources += files('gregistrysettingsbackend.c')
++  endif
++ 
++  application_headers = files(
++    'gapplication.h',
++    'gapplicationcommandline.h',
++ 
++    'gactiongroup.h',
++    'gactionmap.h',
++    'gsimpleactiongroup.h',
++    'gremoteactiongroup.h',
++    'gactiongroupexporter.h',
++    'gdbusactiongroup.h',
++    'gaction.h',
++    'gpropertyaction.h',
++    'gsimpleaction.h',
++ 
++    'gmenumodel.h',
++    'gmenu.h',
++    'gmenuexporter.h',
++    'gdbusmenumodel.h',
++    'gnotification.h',
++  )
++ 
++  application_sources = files(
++    'gapplication.c',
++    'gapplicationcommandline.c',
++    'gapplicationimpl-dbus.c',
++ 
++    'gactiongroup.c',
++    'gactionmap.c',
++    'gsimpleactiongroup.c',
++    'gremoteactiongroup.c',
++    'gactiongroupexporter.c',
++    'gdbusactiongroup.c',
++    'gaction.c',
++    'gpropertyaction.c',
++    'gsimpleaction.c',
++ 
++    'gmenumodel.c',
++    'gmenu.c',
++    'gmenuexporter.c',
++    'gdbusmenumodel.c',
++    'gnotification.c',
++    'gnotificationbackend.c',
++  )
++ 
++  local_sources = files(
++    'ghttpproxy.c',
++    'glocalfile.c',
++    'glocalfileenumerator.c',
++    'glocalfileinfo.c',
++    'glocalfileinputstream.c',
++    'glocalfilemonitor.c',
++    'glocalfileoutputstream.c',
++    'glocalfileiostream.c',
++    'glocalvfs.c',
++    'gsocks4proxy.c',
++    'gsocks4aproxy.c',
++    'gsocks5proxy.c',
++    'thumbnail-verify.c',
++  )
++endif # host system not emscripten
+ 
+ platform_deps = []
+ internal_deps = []
+@@ -348,11 +359,13 @@ portal_sources = []
+ unix_sources = []
+ win32_sources = []
+ 
+-# This is also used by tests/gdbus-daemon, so use files() to include the path
+-gdbus_daemon_sources = [
+-  files('gdbusdaemon.c'),
+-  gdbus_daemon_generated,
+-]
++if host_system  != 'emscripten'
++  # This is also used by tests/gdbus-daemon, so use files() to include the path
++  gdbus_daemon_sources = [
++    files('gdbusdaemon.c'),
++    gdbus_daemon_generated,
++  ]
++endif
+ 
+ if host_system not in ['windows', 'emscripten']
+   unix_sources = files(
+@@ -460,150 +473,153 @@ elif host_system == 'windows'
+ endif
+ 
+ gio_sources = files(
+-  'gappinfo.c',
+-  'gasynchelper.c',
+-  'gasyncinitable.c',
+-  'gasyncresult.c',
+-  'gbufferedinputstream.c',
+-  'gbufferedoutputstream.c',
+-  'gbytesicon.c',
+-  'gcancellable.c',
+-  'gcharsetconverter.c',
+-  'gcontextspecificgroup.c',
+-  'gconverter.c',
+-  'gconverterinputstream.c',
+-  'gconverteroutputstream.c',
+-  'gcredentials.c',
+-  'gdatagrambased.c',
+-  'gdatainputstream.c',
+-  'gdataoutputstream.c',
+-  'gdebugcontroller.c',
+-  'gdebugcontrollerdbus.c',
+-  'gdrive.c',
+-  'gdummyfile.c',
+-  'gdummyproxyresolver.c',
+-  'gdummytlsbackend.c',
+-  'gemblem.c',
+-  'gemblemedicon.c',
+-  'gfile.c',
+-  'gfileattribute.c',
+-  'gfileenumerator.c',
+-  'gfileicon.c',
+-  'gfileinfo.c',
+-  'gfileinputstream.c',
+-  'gfilemonitor.c',
+-  'gfilenamecompleter.c',
+-  'gfileoutputstream.c',
+-  'gfileiostream.c',
+-  'gfilterinputstream.c',
+-  'gfilteroutputstream.c',
+-  'gicon.c',
+-  'ginetaddress.c',
+-  'ginetaddressmask.c',
+-  'ginetsocketaddress.c',
+-  'ginitable.c',
+-  'ginputstream.c',
+-  'gioerror.c',
+-  'giomodule.c',
+-  'giomodule-priv.c',
+-  'gioscheduler.c',
+-  'giostream.c',
+-  'gloadableicon.c',
+-  'gmarshal-internal.c',
+-  'gmount.c',
+-  'gmemorymonitor.c',
+-  'gmemorymonitordbus.c',
+-  'gmemoryinputstream.c',
+-  'gmemoryoutputstream.c',
+-  'gmountoperation.c',
+-  'gnativesocketaddress.c',
+-  'gnativevolumemonitor.c',
+-  'gnetworkaddress.c',
+-  'gnetworking.c',
+-  'gnetworkmonitor.c',
+-  'gnetworkmonitorbase.c',
+-  'gnetworkservice.c',
+-  'goutputstream.c',
+-  'gpermission.c',
+-  'gpollableinputstream.c',
+-  'gpollableoutputstream.c',
+-  'gpollableutils.c',
+-  'gpollfilemonitor.c',
+-  'gpowerprofilemonitor.c',
+-  'gpowerprofilemonitordbus.c',
+-  'gproxy.c',
+-  'gproxyaddress.c',
+-  'gproxyaddressenumerator.c',
+-  'gproxyresolver.c',
+-  'gresolver.c',
+-  'gresource.c',
+-  'gresourcefile.c',
+-  'gseekable.c',
+-  'gsimpleasyncresult.c',
+-  'gsimpleiostream.c',
+-  'gsimplepermission.c',
+-  'gsimpleproxyresolver.c',
+-  'gsocket.c',
+-  'gsocketaddress.c',
+-  'gsocketaddressenumerator.c',
+-  'gsocketclient.c',
+-  'gsocketconnectable.c',
+-  'gsocketconnection.c',
+-  'gsocketcontrolmessage.c',
+-  'gsocketinputstream.c',
+-  'gsocketlistener.c',
+-  'gsocketoutputstream.c',
+-  'gsocketservice.c',
+-  'gsrvtarget.c',
+-  'gsubprocesslauncher.c',
+-  'gsubprocess.c',
+-  'gtask.c',
+-  'gtcpconnection.c',
+-  'gtcpwrapperconnection.c',
+-  'gthemedicon.c',
+-  'gthreadedsocketservice.c',
+-  'gthreadedresolver.c',
+-  'gthreadedresolver.h',
+-  'gtlsbackend.c',
+-  'gtlscertificate.c',
+-  'gtlsclientconnection.c',
+-  'gtlsconnection.c',
+-  'gtlsdatabase.c',
+-  'gtlsfiledatabase.c',
+-  'gtlsinteraction.c',
+-  'gtlspassword.c',
+-  'gtlsserverconnection.c',
+-  'gdtlsconnection.c',
+-  'gdtlsclientconnection.c',
+-  'gdtlsserverconnection.c',
+-  'gunionvolumemonitor.c',
+-  'gunixconnection.c',
+-  'gunixfdlist.c',
+-  'gunixcredentialsmessage.c',
+-  'gunixsocketaddress.c',
+-  'gvfs.c',
+-  'gvolume.c',
+-  'gvolumemonitor.c',
+-  'gzlibcompressor.c',
+-  'gzlibdecompressor.c',
++  # 'gappinfo.c',
++  # 'gasynchelper.c',
++  # 'gasyncinitable.c',
++  # 'gasyncresult.c',
++  # 'gbufferedinputstream.c',
++  # 'gbufferedoutputstream.c',
++  # 'gbytesicon.c',
++  # 'gcancellable.c',
++  # 'gcharsetconverter.c',
++  # 'gcontextspecificgroup.c',
++  # 'gconverter.c',
++  # 'gconverterinputstream.c',
++  # 'gconverteroutputstream.c',
++  # 'gcredentials.c',
++  # 'gdatagrambased.c',
++  # 'gdatainputstream.c',
++  # 'gdataoutputstream.c',
++  # 'gdebugcontroller.c',
++  # 'gdebugcontrollerdbus.c',
++  # 'gdrive.c',
++  # 'gdummyfile.c',
++  # 'gdummyproxyresolver.c',
++  # 'gdummytlsbackend.c',
++  # 'gemblem.c',
++  # 'gemblemedicon.c',
++  # 'gfile.c',
++  # 'gfileattribute.c',
++  # 'gfileenumerator.c',
++  # 'gfileicon.c',
++  # 'gfileinfo.c',
++  # 'gfileinputstream.c',
++  # 'gfilemonitor.c',
++  # 'gfilenamecompleter.c',
++  # 'gfileoutputstream.c',
++  # 'gfileiostream.c',
++  # 'gfilterinputstream.c',
++  # 'gfilteroutputstream.c',
++  # 'gicon.c',
++  # 'ginetaddress.c',
++  # 'ginetaddressmask.c',
++  # 'ginetsocketaddress.c',
++  # 'ginitable.c',
++  # 'ginputstream.c',
++  # 'gioerror.c',
++  # 'giomodule.c',
++  # 'giomodule-priv.c',
++  # 'gioscheduler.c',
++  # 'giostream.c',
++  # 'gloadableicon.c',
++  # 'gmarshal-internal.c',
++  # 'gmount.c',
++  # 'gmemorymonitor.c',
++  # 'gmemorymonitordbus.c',
++  # 'gmemoryinputstream.c',
++  # 'gmemoryoutputstream.c',
++  # 'gmountoperation.c',
++  # 'gnativesocketaddress.c',
++  # 'gnativevolumemonitor.c',
++  # 'gnetworkaddress.c',
++  # 'gnetworking.c',
++  # 'gnetworkmonitor.c',
++  # 'gnetworkmonitorbase.c',
++  # 'gnetworkservice.c',
++  # 'goutputstream.c',
++  # 'gpermission.c',
++  # 'gpollableinputstream.c',
++  # 'gpollableoutputstream.c',
++  # 'gpollableutils.c',
++  # 'gpollfilemonitor.c',
++  # 'gpowerprofilemonitor.c',
++  # 'gpowerprofilemonitordbus.c',
++  # 'gproxy.c',
++  # 'gproxyaddress.c',
++  # 'gproxyaddressenumerator.c',
++  # 'gproxyresolver.c',
++  # 'gresolver.c',
++  # 'gresource.c',
++  # 'gresourcefile.c',
++  # 'gseekable.c',
++  # 'gsimpleasyncresult.c',
++  # 'gsimpleiostream.c',
++  # 'gsimplepermission.c',
++  # 'gsimpleproxyresolver.c',
++  # 'gsocket.c',
++  # 'gsocketaddress.c',
++  # 'gsocketaddressenumerator.c',
++  # 'gsocketclient.c',
++  # 'gsocketconnectable.c',
++  # 'gsocketconnection.c',
++  # 'gsocketcontrolmessage.c',
++  # 'gsocketinputstream.c',
++  # 'gsocketlistener.c',
++  # 'gsocketoutputstream.c',
++  # 'gsocketservice.c',
++  # 'gsrvtarget.c',
++  # 'gsubprocesslauncher.c',
++  # 'gsubprocess.c',
++  # 'gtask.c',
++  # 'gtcpconnection.c',
++  # 'gtcpwrapperconnection.c',
++  # 'gthemedicon.c',
++  # 'gthreadedsocketservice.c',
++  # 'gthreadedresolver.c',
++  # 'gthreadedresolver.h',
++  # 'gtlsbackend.c',
++  # 'gtlscertificate.c',
++  # 'gtlsclientconnection.c',
++  # 'gtlsconnection.c',
++  # 'gtlsdatabase.c',
++  # 'gtlsfiledatabase.c',
++  # 'gtlsinteraction.c',
++  # 'gtlspassword.c',
++  # 'gtlsserverconnection.c',
++  # 'gdtlsconnection.c',
++  # 'gdtlsclientconnection.c',
++  # 'gdtlsserverconnection.c',
++  # 'gunionvolumemonitor.c',
++  # 'gunixconnection.c',
++  # 'gunixfdlist.c',
++  # 'gunixcredentialsmessage.c',
++  # 'gunixsocketaddress.c',
++  # 'gvfs.c',
++  # 'gvolume.c',
++  # 'gvolumemonitor.c',
++  # 'gzlibcompressor.c',
++  # 'gzlibdecompressor.c',
+   'glistmodel.c',
+-  'gliststore.c',
++  # 'gliststore.c',
+ )
+ 
+ if glib_build_shared
+   gio_sources += files ('../glib/gtrace.c')
+ endif
+ 
+-gio_sources += appinfo_sources
+-gio_sources += contenttype_sources
+-gio_sources += gdbus_daemon_sources
+-gio_sources += unix_sources
+-gio_sources += win32_sources
+-gio_sources += application_sources
+-gio_sources += settings_sources
+-gio_sources += gdbus_sources
+ gio_sources += portal_sources
+-gio_sources += local_sources
++
++if host_system  != 'emscripten'
++  gio_sources += appinfo_sources
++  gio_sources += contenttype_sources
++  gio_sources += gdbus_daemon_sources
++  gio_sources += unix_sources
++  gio_sources += win32_sources
++  gio_sources += application_sources
++  gio_sources += settings_sources
++  gio_sources += gdbus_sources
++  gio_sources += local_sources
++endif
+ 
+ MISSING_STUFF = '''
+ # This is read by gobject-introspection/misc/ and gtk-doc
+@@ -618,137 +634,142 @@ gio-2.0.lib: libgio-2.0.la gio.def
+ '''
+ 
+ gio_headers = files(
+-  'gappinfo.h',
+-  'gasyncinitable.h',
+-  'gasyncresult.h',
+-  'gbufferedinputstream.h',
+-  'gbufferedoutputstream.h',
+-  'gbytesicon.h',
+-  'gcancellable.h',
+-  'gcontenttype.h',
+-  'gcharsetconverter.h',
+-  'gconverter.h',
+-  'gconverterinputstream.h',
+-  'gconverteroutputstream.h',
+-  'gdatagrambased.h',
+-  'gdatainputstream.h',
+-  'gdataoutputstream.h',
+-  'gdebugcontroller.h',
+-  'gdebugcontrollerdbus.h',
+-  'gdrive.h',
+-  'gemblem.h',
+-  'gemblemedicon.h',
+-  'gfile.h',
+-  'gfileattribute.h',
+-  'gfileenumerator.h',
+-  'gfileicon.h',
+-  'gfileinfo.h',
+-  'gfileinputstream.h',
+-  'gfilemonitor.h',
+-  'gfilenamecompleter.h',
+-  'gfileoutputstream.h',
+-  'gfileiostream.h',
+-  'gfilterinputstream.h',
+-  'gfilteroutputstream.h',
+-  'gicon.h',
+-  'ginetaddress.h',
+-  'ginetaddressmask.h',
+-  'ginetsocketaddress.h',
+-  'ginitable.h',
+-  'ginputstream.h',
++  # 'gappinfo.h',
++  # 'gasyncinitable.h',
++  # 'gasyncresult.h',
++  # 'gbufferedinputstream.h',
++  # 'gbufferedoutputstream.h',
++  # 'gbytesicon.h',
++  # 'gcancellable.h',
++  # 'gcontenttype.h',
++  # 'gcharsetconverter.h',
++  # 'gconverter.h',
++  # 'gconverterinputstream.h',
++  # 'gconverteroutputstream.h',
++  # 'gdatagrambased.h',
++  # 'gdatainputstream.h',
++  # 'gdataoutputstream.h',
++  # 'gdebugcontroller.h',
++  # 'gdebugcontrollerdbus.h',
++  # 'gdrive.h',
++  # 'gemblem.h',
++  # 'gemblemedicon.h',
++  # 'gfile.h',
++  # 'gfileattribute.h',
++  # 'gfileenumerator.h',
++  # 'gfileicon.h',
++  # 'gfileinfo.h',
++  # 'gfileinputstream.h',
++  # 'gfilemonitor.h',
++  # 'gfilenamecompleter.h',
++  # 'gfileoutputstream.h',
++  # 'gfileiostream.h',
++  # 'gfilterinputstream.h',
++  # 'gfilteroutputstream.h',
++  # 'gicon.h',
++  # 'ginetaddress.h',
++  # 'ginetaddressmask.h',
++  # 'ginetsocketaddress.h',
++  # 'ginitable.h',
++  # 'ginputstream.h',
+   'gio.h',
+-  'gio-autocleanups.h',
+-  'gioenums.h',
+-  'gioerror.h',
+-  'giomodule.h',
+-  'gioscheduler.h',
+-  'giostream.h',
+-  'giotypes.h',
+-  'gloadableicon.h',
+-  'gmount.h',
+-  'gmemoryinputstream.h',
+-  'gmemorymonitor.h',
+-  'gmemoryoutputstream.h',
+-  'gmountoperation.h',
+-  'gnativesocketaddress.h',
+-  'gnativevolumemonitor.h',
+-  'gnetworkaddress.h',
+-  'gnetworkmonitor.h',
+-  'gnetworkservice.h',
+-  'goutputstream.h',
+-  'gpermission.h',
+-  'gpollableinputstream.h',
+-  'gpollableoutputstream.h',
+-  'gpollableutils.h',
+-  'gpowerprofilemonitor.h',
+-  'gproxy.h',
+-  'gproxyaddress.h',
+-  'gproxyaddressenumerator.h',
+-  'gproxyresolver.h',
+-  'gresolver.h',
+-  'gresource.h',
+-  'gseekable.h',
+-  'gsimpleasyncresult.h',
+-  'gsimpleiostream.h',
+-  'gsimplepermission.h',
+-  'gsimpleproxyresolver.h',
+-  'gsocket.h',
+-  'gsocketaddress.h',
+-  'gsocketaddressenumerator.h',
+-  'gsocketclient.h',
+-  'gsocketconnectable.h',
+-  'gsocketconnection.h',
+-  'gsocketcontrolmessage.h',
+-  'gsocketlistener.h',
+-  'gsocketservice.h',
+-  'gsrvtarget.h',
+-  'gsubprocess.h',
+-  'gsubprocesslauncher.h',
+-  'gtask.h',
+-  'gtcpconnection.h',
+-  'gtcpwrapperconnection.h',
+-  'gthemedicon.h',
+-  'gthreadedsocketservice.h',
+-  'gtlsbackend.h',
+-  'gtlscertificate.h',
+-  'gtlsclientconnection.h',
+-  'gtlsconnection.h',
+-  'gtlsdatabase.h',
+-  'gtlsfiledatabase.h',
+-  'gtlsinteraction.h',
+-  'gtlspassword.h',
+-  'gtlsserverconnection.h',
+-  'gdtlsconnection.h',
+-  'gdtlsclientconnection.h',
+-  'gdtlsserverconnection.h',
+-  'gunixconnection.h',
+-  'gunixcredentialsmessage.h',
+-  'gunixfdlist.h',
+-  'gunixsocketaddress.h',
+-  'gvfs.h',
+-  'gvolume.h',
+-  'gvolumemonitor.h',
+-  'gzlibcompressor.h',
+-  'gzlibdecompressor.h',
++  # 'gio-autocleanups.h',
++  # 'gioenums.h',
++  # 'gioerror.h',
++  # 'giomodule.h',
++  # 'gioscheduler.h',
++  # 'giostream.h',
++  # 'giotypes.h',
++  # 'gloadableicon.h',
++  # 'gmount.h',
++  # 'gmemoryinputstream.h',
++  # 'gmemorymonitor.h',
++  # 'gmemoryoutputstream.h',
++  # 'gmountoperation.h',
++  # 'gnativesocketaddress.h',
++  # 'gnativevolumemonitor.h',
++  # 'gnetworkaddress.h',
++  # 'gnetworkmonitor.h',
++  # 'gnetworkservice.h',
++  # 'goutputstream.h',
++  # 'gpermission.h',
++  # 'gpollableinputstream.h',
++  # 'gpollableoutputstream.h',
++  # 'gpollableutils.h',
++  # 'gpowerprofilemonitor.h',
++  # 'gproxy.h',
++  # 'gproxyaddress.h',
++  # 'gproxyaddressenumerator.h',
++  # 'gproxyresolver.h',
++  # 'gresolver.h',
++  # 'gresource.h',
++  # 'gseekable.h',
++  # 'gsimpleasyncresult.h',
++  # 'gsimpleiostream.h',
++  # 'gsimplepermission.h',
++  # 'gsimpleproxyresolver.h',
++  # 'gsocket.h',
++  # 'gsocketaddress.h',
++  # 'gsocketaddressenumerator.h',
++  # 'gsocketclient.h',
++  # 'gsocketconnectable.h',
++  # 'gsocketconnection.h',
++  # 'gsocketcontrolmessage.h',
++  # 'gsocketlistener.h',
++  # 'gsocketservice.h',
++  # 'gsrvtarget.h',
++  # 'gsubprocess.h',
++  # 'gsubprocesslauncher.h',
++  # 'gtask.h',
++  # 'gtcpconnection.h',
++  # 'gtcpwrapperconnection.h',
++  # 'gthemedicon.h',
++  # 'gthreadedsocketservice.h',
++  # 'gtlsbackend.h',
++  # 'gtlscertificate.h',
++  # 'gtlsclientconnection.h',
++  # 'gtlsconnection.h',
++  # 'gtlsdatabase.h',
++  # 'gtlsfiledatabase.h',
++  # 'gtlsinteraction.h',
++  # 'gtlspassword.h',
++  # 'gtlsserverconnection.h',
++  # 'gdtlsconnection.h',
++  # 'gdtlsclientconnection.h',
++  # 'gdtlsserverconnection.h',
++  # 'gunixconnection.h',
++  # 'gunixcredentialsmessage.h',
++  # 'gunixfdlist.h',
++  # 'gunixsocketaddress.h',
++  # 'gvfs.h',
++  # 'gvolume.h',
++  # 'gvolumemonitor.h',
++  # 'gzlibcompressor.h',
++  # 'gzlibdecompressor.h',
+   'glistmodel.h',
+-  'gliststore.h',
++  # 'gliststore.h',
+ )
+ 
+-gio_visibility_h = custom_target(
+-  output: 'gio-visibility.h',
+-  command: [gen_visibility_macros, meson.project_version(), 'visibility-macros', 'GIO', '@OUTPUT@'],
+-  install: true,
+-  install_dir: gio_includedir,
+-  # FIXME: Not needed with Meson >= 0.64.0
+-  install_tag: 'devel',
+-)
+-gio_sources += gio_visibility_h
++if host_system  != 'emscripten'
++  gio_visibility_h = custom_target(
++    output: 'gio-visibility.h',
++    command: [gen_visibility_macros, meson.project_version(), 'visibility-macros', 'GIO', '@OUTPUT@'],
++    install: true,
++    install_dir: gio_includedir,
++    # FIXME: Not needed with Meson >= 0.64.0
++    install_tag: 'devel',
++  )
++  gio_sources += gio_visibility_h
++
++  gio_headers += application_headers
++  gio_headers += settings_headers
++  gio_headers += gdbus_headers
++endif
+ 
+-gio_headers += application_headers
+-gio_headers += settings_headers
+-gio_headers += gdbus_headers
+ install_headers(gio_headers, install_dir : gio_includedir)
+ 
++# TODO Handle gnetworking and visibility in the sections below.
++#
+ # We can't use gnome.mkenums() because the GNOME module looks for glib-mkenums
+ # in PATH, which means you can't bootstrap glib with its own glib-mkenums.
+ gioenumtypes_h = custom_target('gioenumtypes_h',
+@@ -761,7 +782,7 @@ gioenumtypes_h = custom_target('gioenumtypes_h',
+   install_tag: 'devel',
+   command : [python, glib_mkenums,
+              '--template', files('gioenumtypes.h.template'),
+-             '@INPUT@', gnetworking_h])
++             '@INPUT@'])#, gnetworking_h])
+ 
+ gioenumtypes_c = custom_target('gioenumtypes_c',
+   output : 'gioenumtypes.c',
+@@ -770,9 +791,9 @@ gioenumtypes_c = custom_target('gioenumtypes_c',
+   depends : [gioenumtypes_h],
+   command : [python, glib_mkenums,
+              '--template', files('gioenumtypes.c.template'),
+-             '@INPUT@', gnetworking_h])
++             '@INPUT@'])#, gnetworking_h])
+ 
+-gioenumtypes_dep = declare_dependency(sources : [gioenumtypes_h, glib_enumtypes_h, gio_visibility_h])
++gioenumtypes_dep = declare_dependency(sources : [gioenumtypes_h, glib_enumtypes_h])#, gio_visibility_h])
+ 
+ # inotify
+ if glib_conf.has('HAVE_SYS_INOTIFY_H') and have_func_inotify_init1
+@@ -823,8 +844,12 @@ else
+   gio_dtrace_hdr = []
+ endif
+ 
++# TODO Handle gnetworking and gvdb_dep
+ libgio = library('gio-2.0',
+-  gioenumtypes_h, gioenumtypes_c, gnetworking_h, gio_sources,
++  gioenumtypes_h,
++  gioenumtypes_c,
++  # gnetworking_h,
++  gio_sources,
+   gio_dtrace_hdr, gio_dtrace_obj,
+   version : library_version,
+   soversion : soversion,
+@@ -836,7 +861,7 @@ libgio = library('gio-2.0',
+   dependencies : [libz_dep, libdl_dep, libmount_dep, libglib_dep,
+                   libgobject_dep, libgmodule_dep, selinux_dep, xattr_dep,
+                   platform_deps, network_libs, libsysprof_capture_dep,
+-                  gioenumtypes_dep, gvdb_dep],
++                  gioenumtypes_dep], #, gvdb_dep],
+   c_args : [gio_c_args, gio_c_args_internal],
+   objc_args : [gio_c_args, gio_c_args_internal],
+   gnu_symbol_visibility : 'hidden',
+@@ -844,11 +869,11 @@ libgio = library('gio-2.0',
+   link_args : [noseh_link_args, glib_link_flags],
+ )
+ 
+-if get_option('gio_module_dir') != ''
+-  pkgconfig_giomodulesdir = join_paths('${prefix}', get_option('gio_module_dir'))
+-else
+-  pkgconfig_giomodulesdir = join_paths('${libdir}', 'gio', 'modules')
+-endif
++# if get_option('gio_module_dir') != ''
++#   pkgconfig_giomodulesdir = join_paths('${prefix}', get_option('gio_module_dir'))
++# else
++#   pkgconfig_giomodulesdir = join_paths('${libdir}', 'gio', 'modules')
++# endif
+ 
+ schemas_subdir = join_paths('glib-2.0', 'schemas')
+ 
+@@ -857,7 +882,6 @@ libgio_dep = declare_dependency(link_with : libgio,
+   include_directories : [gioinc],
+   variables : [
+     'schemasdir=' + join_paths(glib_datadir, schemas_subdir),
+-    'giomoduledir=' + glib_giomodulesdir,
+   ],
+ )
+ 
+@@ -866,15 +890,15 @@ pkg.generate(libgio,
+   variables : ['datadir=' + join_paths('${prefix}', get_option('datadir')),
+                'schemasdir=' + join_paths('${datadir}', schemas_subdir),
+                'bindir=' + join_paths('${prefix}', get_option('bindir')),
+-               'giomoduledir=' + pkgconfig_giomodulesdir,
++               #'giomoduledir=' + pkgconfig_giomodulesdir,
+                'gio=' + join_paths('${bindir}', 'gio'),
+-               'gio_querymodules=@0@'.format(pkgconfig_multiarch_bindir / 'gio-querymodules'),
++               #'gio_querymodules=@0@'.format(pkgconfig_multiarch_bindir / 'gio-querymodules'),
+                'glib_compile_schemas=@0@'.format(pkgconfig_multiarch_bindir / 'glib-compile-schemas'),
+                'glib_compile_resources=' + join_paths('${bindir}', 'glib-compile-resources'),
+                'gdbus=' + join_paths('${bindir}', 'gdbus'),
+-               'gdbus_codegen=' + join_paths('${bindir}', 'gdbus-codegen'),
+-               'gresource=' + join_paths('${bindir}', 'gresource'),
+-               'gsettings=' + join_paths('${bindir}', 'gsettings')],
++               # 'gdbus_codegen=' + join_paths('${bindir}', 'gdbus-codegen'),
++               'gresource=' + join_paths('${bindir}', 'gresource')],
++               # 'gsettings=' + join_paths('${bindir}', 'gsettings')],
+   version : glib_version,
+   install_dir : glib_pkgconfigreldir,
+   filebase : 'gio-2.0',
+@@ -951,9 +975,9 @@ if enable_systemtap
+   )
+ endif
+ 
+-if build_tests
+-    subdir('tests')
+-endif
++# if host_system not in ['emscripten']
++#   subdir('tests')
++# endif
+ 
+ # The following is an example for building internal marshallers that are used
+ # by GIO. We cannot guarantee glib-genmarshal availability while building GLib
+diff --git a/meson.build b/meson.build
+index e793ecb..fef4274 100644
+--- a/meson.build
++++ b/meson.build
+@@ -93,11 +93,11 @@ glib_libexecdir = join_paths(glib_prefix, get_option('libexecdir'))
+ glib_datadir = join_paths(glib_prefix, get_option('datadir'))
+ glib_pkgdatadir = join_paths(glib_datadir, 'glib-2.0')
+ glib_includedir = join_paths(glib_prefix, get_option('includedir'), 'glib-2.0')
+-if get_option('gio_module_dir') != ''
+-  glib_giomodulesdir = join_paths(glib_prefix, get_option('gio_module_dir'))
+-else
+-  glib_giomodulesdir = join_paths(glib_libdir, 'gio', 'modules')
+-endif
++# if get_option('gio_module_dir') != ''
++#   glib_giomodulesdir = join_paths(glib_prefix, get_option('gio_module_dir'))
++# else
++#   glib_giomodulesdir = join_paths(glib_libdir, 'gio', 'modules')
++# endif
+ 
+ if get_option('multiarch')
+   # For multiarch/multilib distributions, install each architecture's
+@@ -2086,8 +2086,8 @@ else
+ endif
+ 
+ # Import the gvdb sources as a subproject to avoid having the copylib in-tree
+-subproject('gvdb')
+-gvdb_dep = dependency('gvdb')
++# subproject('gvdb')
++# gvdb_dep = dependency('gvdb')
+ 
+ libm = cc.find_library('m', required : false)
+ libffi_dep = dependency('libffi', version : '>= 3.0.0')
+@@ -2478,7 +2478,7 @@ summary({
+   'pkgdatadir' : glib_pkgdatadir,
+   'datadir' : glib_datadir,
+   'includedir' : glib_includedir,
+-  'giomodulesdir' : glib_giomodulesdir,
++  #'giomodulesdir' : glib_giomodulesdir,
+   'localstatedir' : glib_localstatedir,
+   'runstatedir' : glib_runstatedir,
+ }, section: 'Directories')

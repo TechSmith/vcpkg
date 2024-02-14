@@ -8,10 +8,7 @@
   "supports": "!xbox",
   "dependencies": [
     {
-      "name": "cairo",
-      "features": [
-        "gobject"
-      ]
+      "name": "cairo"
     },
     "fontconfig",
     "freetype",

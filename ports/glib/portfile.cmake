@@ -14,6 +14,7 @@ if(VCPKG_TARGET_IS_EMSCRIPTEN)
            fix-build-race-on-gio.patch # https://gitlab.gnome.org/GNOME/glib/-/merge_requests/3512
            tsc-allow-threadpriority-to-fail-windows.patch 
            emscripten.patch
+           remove-most-of-gio.patch
    )
 else()
    vcpkg_extract_source_archive(SOURCE_PATH
@@ -69,11 +70,11 @@ vcpkg_copy_pdbs()
 
 file(MAKE_DIRECTORY "${CURRENT_PACKAGES_DIR}/tools/${PORT}")
 set(GLIB_SCRIPTS
-    gdbus-codegen
-    glib-genmarshal
-    glib-gettextize
+    #gdbus-codegen
+    #glib-genmarshal
+    #glib-gettextize
     glib-mkenums
-    gtester-report
+    #gtester-report
 )
 foreach(script IN LISTS GLIB_SCRIPTS)
     file(RENAME "${CURRENT_PACKAGES_DIR}/bin/${script}" "${CURRENT_PACKAGES_DIR}/tools/${PORT}/${script}")
@@ -142,17 +143,17 @@ if(NOT VCPKG_TARGET_IS_EMSCRIPTEN)
        vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/debug/lib/pkgconfig/gio-2.0.pc" "\${bindir}" "\${prefix}/../tools/${PORT}")
        vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/debug/lib/pkgconfig/glib-2.0.pc" "\${bindir}" "\${prefix}/../tools/${PORT}")
    endif()
+
+   # Fix python scripts
+   set(_file "${CURRENT_PACKAGES_DIR}/tools/${PORT}/gdbus-codegen")
+
+   file(READ "${_file}" _contents)
+   string(REPLACE "elif os.path.basename(filedir) == 'bin':" "elif os.path.basename(filedir) == 'tools':" _contents "${_contents}")
+   string(REPLACE "path = os.path.join(filedir, '..', 'share', 'glib-2.0')" "path = os.path.join(filedir, '../..', 'share', 'glib-2.0')" _contents "${_contents}")
+   string(REPLACE "path = os.path.join(filedir, '..')" "path = os.path.join(filedir, '../../share/glib-2.0')" _contents "${_contents}")
+   string(REPLACE "path = os.path.join('${CURRENT_PACKAGES_DIR}/share', 'glib-2.0')" "path = os.path.join('unuseable/share', 'glib-2.0')" _contents "${_contents}")
+   file(WRITE "${_file}" "${_contents}")
 endif()
-
-# Fix python scripts
-set(_file "${CURRENT_PACKAGES_DIR}/tools/${PORT}/gdbus-codegen")
-
-file(READ "${_file}" _contents)
-string(REPLACE "elif os.path.basename(filedir) == 'bin':" "elif os.path.basename(filedir) == 'tools':" _contents "${_contents}")
-string(REPLACE "path = os.path.join(filedir, '..', 'share', 'glib-2.0')" "path = os.path.join(filedir, '../..', 'share', 'glib-2.0')" _contents "${_contents}")
-string(REPLACE "path = os.path.join(filedir, '..')" "path = os.path.join(filedir, '../../share/glib-2.0')" _contents "${_contents}")
-string(REPLACE "path = os.path.join('${CURRENT_PACKAGES_DIR}/share', 'glib-2.0')" "path = os.path.join('unuseable/share', 'glib-2.0')" _contents "${_contents}")
-file(WRITE "${_file}" "${_contents}")
 
 if(EXISTS "${CURRENT_PACKAGES_DIR}/tools/${PORT}/glib-gettextize")
     vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/tools/${PORT}/glib-gettextize" "${CURRENT_PACKAGES_DIR}" "`dirname $0`/../..")

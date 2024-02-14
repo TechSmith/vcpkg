@@ -35,12 +35,6 @@
         "freetype"
       ]
     },
-    "gobject": {
-      "description": "build gobject module",
-      "dependencies": [
-        "glib"
-      ]
-    },
     "x11": {
       "description": "build with x11 support",
       "supports": "!windows"
