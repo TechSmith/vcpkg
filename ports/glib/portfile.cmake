@@ -15,6 +15,7 @@ if(VCPKG_TARGET_IS_EMSCRIPTEN)
            tsc-allow-threadpriority-to-fail-windows.patch 
            emscripten.patch
            remove-most-of-gio.patch
+           reduce-glib-size.patch
    )
 else()
    vcpkg_extract_source_archive(SOURCE_PATH
@@ -69,13 +70,20 @@ vcpkg_install_meson(ADD_BIN_TO_PATH)
 vcpkg_copy_pdbs()
 
 file(MAKE_DIRECTORY "${CURRENT_PACKAGES_DIR}/tools/${PORT}")
-set(GLIB_SCRIPTS
-    #gdbus-codegen
-    #glib-genmarshal
-    #glib-gettextize
-    glib-mkenums
-    #gtester-report
-)
+
+if ( VCPKG_TARGET_IS_EMSCRIPTEN )
+   set(GLIB_SCRIPTS
+       glib-mkenums
+   )
+else()
+   set(GLIB_SCRIPTS
+       gdbus-codegen
+       glib-genmarshal
+       glib-gettextize
+       glib-mkenums
+       gtester-report
+   )
+endif()
 foreach(script IN LISTS GLIB_SCRIPTS)
     file(RENAME "${CURRENT_PACKAGES_DIR}/bin/${script}" "${CURRENT_PACKAGES_DIR}/tools/${PORT}/${script}")
     file(REMOVE "${CURRENT_PACKAGES_DIR}/debug/bin/${script}")
