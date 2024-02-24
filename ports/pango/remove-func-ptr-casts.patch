@@ -1,0 +1,903 @@
+diff --git a/meson.build b/meson.build
+index ba293fe..5578553 100644
+--- a/meson.build
++++ b/meson.build
+@@ -61,7 +61,8 @@ if cc.get_id() == 'msvc'
+   test_cflags = ['-FImsvc_recommended_pragmas.h', '-utf-8']
+   add_project_arguments(cc.get_supported_arguments(test_cflags), language: 'c')
+   test_c_only_flags = []
+-elif cc.get_id() == 'gcc' or cc.get_id() == 'clang'
++elif cc.get_id() == 'gcc' or cc.get_id() == 'clang' or cc.get_id() == 'emscripten'
++
+   test_c_only_flags = [
+     '-Wno-c++11-extensions',
+     '-Wno-missing-include-dirs',
+@@ -107,9 +108,15 @@ elif cc.get_id() == 'gcc' or cc.get_id() == 'clang'
+     '-Werror=trigraphs',
+     '-Werror=vla',
+     '-Werror=write-strings',
++      '-Wbad-function-cast',
++      '-Wcast-function-type',
+   ]
+ 
++  message('IN THE CFlAGS AREA')
++
+   test_cflags = test_c_only_flags + [
++      '-Wbad-function-cast',
++      '-Wcast-function-type',
+     '-fno-strict-aliasing',
+     '-Wpointer-arith',
+     '-Wmissing-declarations',
+diff --git a/pango/break.c b/pango/break.c
+index 0b636af..aa1e5d4 100644
+--- a/pango/break.c
++++ b/pango/break.c
+@@ -2317,7 +2317,7 @@ pango_attr_break (const char    *text,
+       start->is_cursor_position |= attr_before.is_cursor_position;
+     }
+ 
+-  g_slist_free_full (attributes, (GDestroyNotify)pango_attribute_destroy);
++  g_slist_free_full (attributes, pango_attribute_destroy_adapter);
+ }
+ 
+ /**
+diff --git a/pango/fonts.c b/pango/fonts.c
+index e259f8c..261ec9d 100644
+--- a/pango/fonts.c
++++ b/pango/fonts.c
+@@ -2354,9 +2354,14 @@ pango_font_family_list_model_init (GListModelInterface *iface)
+   iface->get_n_items = pango_font_family_get_n_items;
+   iface->get_item = pango_font_family_get_item;
+ }
++static void
++pango_font_family_list_model_init_adapter (gpointer iface, gpointer dummy)
++{
++   pango_font_family_list_model_init ((GListModelInterface *) iface);
++}
+ 
+ G_DEFINE_ABSTRACT_TYPE_WITH_CODE (PangoFontFamily, pango_font_family, G_TYPE_OBJECT,
+-                                  G_IMPLEMENT_INTERFACE (G_TYPE_LIST_MODEL, pango_font_family_list_model_init))
++                                  G_IMPLEMENT_INTERFACE (G_TYPE_LIST_MODEL, pango_font_family_list_model_init_adapter))
+ 
+ static PangoFontFace *pango_font_family_real_get_face (PangoFontFamily *family,
+                                                        const char      *name);
+diff --git a/pango/itemize.c b/pango/itemize.c
+index 5500d56..8583c02 100644
+--- a/pango/itemize.c
++++ b/pango/itemize.c
+@@ -58,6 +58,11 @@ font_cache_destroy (FontCache *cache)
+   g_hash_table_destroy (cache->hash);
+   g_slice_free (FontCache, cache);
+ }
++static void
++font_cache_destroy_adapter (gpointer cache)
++{
++   font_cache_destroy ((FontCache *) cache);
++}
+ 
+ static void
+ font_element_destroy (FontElement *element)
+@@ -66,6 +71,11 @@ font_element_destroy (FontElement *element)
+     g_object_unref (element->font);
+   g_slice_free (FontElement, element);
+ }
++static void
++font_element_destroy_adapter (gpointer element)
++{
++   font_element_destroy ((FontElement *) element);
++}
+ 
+ static FontCache *
+ get_font_cache (PangoFontset *fontset)
+@@ -82,9 +92,9 @@ retry:
+     {
+       cache = g_slice_new (FontCache);
+       cache->hash = g_hash_table_new_full (g_direct_hash, NULL,
+-                                           NULL, (GDestroyNotify)font_element_destroy);
++                                           NULL, font_element_destroy_adapter);
+       if (!g_object_replace_qdata (G_OBJECT (fontset), cache_quark, NULL,
+-                                   cache, (GDestroyNotify)font_cache_destroy,
++                                   cache, font_cache_destroy_adapter,
+                                    NULL))
+         {
+           font_cache_destroy (cache);
+diff --git a/pango/pango-attributes.c b/pango/pango-attributes.c
+index 47aa0aa..3c3d0a8 100644
+--- a/pango/pango-attributes.c
++++ b/pango/pango-attributes.c
+@@ -148,6 +148,11 @@ pango_attribute_copy (const PangoAttribute *attr)
+ 
+   return result;
+ }
++gpointer
++pango_attribute_copy_adapter (gconstpointer attr, gpointer dummy)
++{
++   return pango_attribute_copy ((PangoAttribute*) attr);
++}
+ 
+ /**
+  * pango_attribute_destroy:
+@@ -162,6 +167,16 @@ pango_attribute_destroy (PangoAttribute *attr)
+ 
+   attr->klass->destroy (attr);
+ }
++void
++pango_attribute_destroy_adapter (gpointer attr)
++{
++   pango_attribute_destroy ((PangoAttribute*) attr);
++}
++void
++pango_attribute_destroy_gfunc_adapter (gpointer attr, gpointer dummy)
++{
++   pango_attribute_destroy ((PangoAttribute*) attr);
++}
+ 
+ G_DEFINE_BOXED_TYPE (PangoAttribute, pango_attribute,
+                      pango_attribute_copy,
+@@ -1919,6 +1934,11 @@ pango_attr_list_unref (PangoAttrList *list)
+       g_slice_free (PangoAttrList, list);
+     }
+ }
++void
++pango_attr_list_unref_adapter (gpointer list)
++{
++   pango_attr_list_unref((PangoAttrList*) list);
++}
+ 
+ /**
+  * pango_attr_list_copy:
+@@ -1943,7 +1963,7 @@ pango_attr_list_copy (PangoAttrList *list)
+   if (!list->attributes || list->attributes->len == 0)
+     return new;
+ 
+-  new->attributes = g_ptr_array_copy (list->attributes, (GCopyFunc)pango_attribute_copy, NULL);
++  new->attributes = g_ptr_array_copy (list->attributes, pango_attribute_copy_adapter, NULL);
+ 
+   return new;
+ }
+@@ -3334,6 +3354,11 @@ pango_attr_iterator_destroy (PangoAttrIterator *iterator)
+   _pango_attr_iterator_destroy (iterator);
+   g_slice_free (PangoAttrIterator, iterator);
+ }
++void
++pango_attr_iterator_destroy_adapter (gpointer iterator)
++{
++   pango_attr_iterator_destroy ((PangoAttrIterator*) iterator);
++}
+ 
+ /**
+  * pango_attr_iterator_get:
+diff --git a/pango/pango-attributes.h b/pango/pango-attributes.h
+index 69ff9e5..d2b11e2 100644
+--- a/pango/pango-attributes.h
++++ b/pango/pango-attributes.h
+@@ -509,8 +509,13 @@ void                    pango_attribute_init                    (PangoAttribute
+                                                                  const PangoAttrClass       *klass);
+ PANGO_AVAILABLE_IN_ALL
+ PangoAttribute *        pango_attribute_copy                    (const PangoAttribute       *attr);
++gpointer                pango_attribute_copy_adapter            (gconstpointer               attr,
++                                                                 gpointer                    dummy);
+ PANGO_AVAILABLE_IN_ALL
+ void                    pango_attribute_destroy                 (PangoAttribute             *attr);
++void                    pango_attribute_destroy_adapter         (gpointer                    attr);
++void                    pango_attribute_destroy_gfunc_adapter    (gpointer                    attr,
++                                                                 gpointer                    dummy);
+ PANGO_AVAILABLE_IN_ALL
+ gboolean                pango_attribute_equal                   (const PangoAttribute       *attr1,
+                                                                  const PangoAttribute       *attr2) G_GNUC_PURE;
+@@ -673,6 +678,7 @@ PANGO_AVAILABLE_IN_1_10
+ PangoAttrList *         pango_attr_list_ref             (PangoAttrList         *list);
+ PANGO_AVAILABLE_IN_ALL
+ void                    pango_attr_list_unref           (PangoAttrList         *list);
++void                    pango_attr_list_unref_adapter   (gpointer               list);
+ PANGO_AVAILABLE_IN_ALL
+ PangoAttrList *         pango_attr_list_copy            (PangoAttrList         *list);
+ PANGO_AVAILABLE_IN_ALL
+@@ -728,6 +734,7 @@ PANGO_AVAILABLE_IN_ALL
+ PangoAttrIterator *     pango_attr_iterator_copy        (PangoAttrIterator     *iterator);
+ PANGO_AVAILABLE_IN_ALL
+ void                    pango_attr_iterator_destroy     (PangoAttrIterator     *iterator);
++void                    pango_attr_iterator_destroy_adapter (gpointer           iterator);
+ PANGO_AVAILABLE_IN_ALL
+ PangoAttribute *        pango_attr_iterator_get         (PangoAttrIterator     *iterator,
+                                                          PangoAttrType          type);
+@@ -739,9 +746,9 @@ void                    pango_attr_iterator_get_font    (PangoAttrIterator     *
+ PANGO_AVAILABLE_IN_1_2
+ GSList *                pango_attr_iterator_get_attrs   (PangoAttrIterator     *iterator);
+ 
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(PangoAttribute, pango_attribute_destroy)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(PangoAttrList, pango_attr_list_unref)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(PangoAttrIterator, pango_attr_iterator_destroy)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(PangoAttribute, pango_attribute_destroy_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(PangoAttrList, pango_attr_list_unref_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(PangoAttrIterator, pango_attr_iterator_destroy_adapter)
+ 
+ G_END_DECLS
+ 
+diff --git a/pango/pango-context.c b/pango/pango-context.c
+index cbc4f17..6c1d6b1 100644
+--- a/pango/pango-context.c
++++ b/pango/pango-context.c
+@@ -722,7 +722,7 @@ pango_context_get_metrics (PangoContext               *context,
+ 
+   update_metrics_from_items (metrics, language, sample_str, text_len, items);
+ 
+-  g_list_foreach (items, (GFunc)pango_item_free, NULL);
++  g_list_foreach (items, pango_item_free_adapter, NULL);
+   g_list_free (items);
+ 
+   g_object_unref (current_fonts);
+diff --git a/pango/pango-font.h b/pango/pango-font.h
+index 9fc63b3..209f472 100644
+--- a/pango/pango-font.h
++++ b/pango/pango-font.h
+@@ -259,6 +259,7 @@ gboolean              pango_font_description_equal       (const PangoFontDescrip
+                                                           const PangoFontDescription  *desc2) G_GNUC_PURE;
+ PANGO_AVAILABLE_IN_ALL
+ void                  pango_font_description_free        (PangoFontDescription        *desc);
++void                  pango_font_description_free_adapter(gpointer                     desc);
+ PANGO_AVAILABLE_IN_ALL
+ void                  pango_font_descriptions_free       (PangoFontDescription       **descs,
+                                                           int                          n_descs);
+@@ -692,7 +693,7 @@ PangoFont *           pango_font_deserialize       (PangoContext     *context,
+ G_DEFINE_AUTOPTR_CLEANUP_FUNC(PangoFontFamily, g_object_unref)
+ G_DEFINE_AUTOPTR_CLEANUP_FUNC(PangoFontFace, g_object_unref)
+ G_DEFINE_AUTOPTR_CLEANUP_FUNC(PangoFont, g_object_unref)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(PangoFontDescription, pango_font_description_free)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(PangoFontDescription, pango_font_description_free_adapter)
+ 
+ G_END_DECLS
+ 
+diff --git a/pango/pango-fontmap.c b/pango/pango-fontmap.c
+index 20ecb93..d647f7a 100644
+--- a/pango/pango-fontmap.c
++++ b/pango/pango-fontmap.c
+@@ -42,6 +42,7 @@ static void pango_font_map_real_changed (PangoFontMap *fontmap);
+ static guint pango_font_map_get_n_items (GListModel *list);
+ 
+ static void pango_font_map_list_model_init (GListModelInterface *iface);
++static void pango_font_map_list_model_init_adapter (gpointer iface, gpointer dummy);
+ 
+ typedef struct {
+   guint n_families;
+@@ -59,7 +60,7 @@ static GParamSpec *properties[N_PROPERTIES] = { NULL, };
+ 
+ G_DEFINE_ABSTRACT_TYPE_WITH_CODE (PangoFontMap, pango_font_map, G_TYPE_OBJECT,
+                                   G_ADD_PRIVATE (PangoFontMap)
+-                                  G_IMPLEMENT_INTERFACE (G_TYPE_LIST_MODEL, pango_font_map_list_model_init))
++                                  G_IMPLEMENT_INTERFACE (G_TYPE_LIST_MODEL, pango_font_map_list_model_init_adapter))
+ 
+ static void
+ pango_font_map_get_property (GObject    *object,
+@@ -531,3 +532,8 @@ pango_font_map_list_model_init (GListModelInterface *iface)
+   iface->get_n_items = pango_font_map_get_n_items;
+   iface->get_item = pango_font_map_get_item;
+ }
++static void
++pango_font_map_list_model_init_adapter (gpointer iface, gpointer dummy)
++{
++   pango_font_map_list_model_init ((GListModelInterface *) iface);
++}
+diff --git a/pango/pango-item.c b/pango/pango-item.c
+index 944bfe2..5a88573 100644
+--- a/pango/pango-item.c
++++ b/pango/pango-item.c
+@@ -101,7 +101,7 @@ pango_item_free (PangoItem *item)
+ 
+   if (item->analysis.extra_attrs)
+     {
+-      g_slist_foreach (item->analysis.extra_attrs, (GFunc)pango_attribute_destroy, NULL);
++      g_slist_foreach (item->analysis.extra_attrs, pango_attribute_destroy_gfunc_adapter, NULL);
+       g_slist_free (item->analysis.extra_attrs);
+     }
+ 
+@@ -252,7 +252,7 @@ pango_item_apply_attrs (PangoItem         *item,
+ 
+                 attrs = g_slist_prepend (attrs, pango_attribute_copy (l->data));
+             }
+-          g_slist_free_full (list, (GDestroyNotify)pango_attribute_destroy);
++          g_slist_free_full (list, pango_attribute_destroy_adapter);
+         }
+ 
+       if (end >= item->offset + item->length)
+diff --git a/pango/pango-item.h b/pango/pango-item.h
+index f0eebc0..aa67138 100644
+--- a/pango/pango-item.h
++++ b/pango/pango-item.h
+@@ -127,6 +127,8 @@ PANGO_AVAILABLE_IN_ALL
+ PangoItem *             pango_item_copy              (PangoItem         *item);
+ PANGO_AVAILABLE_IN_ALL
+ void                    pango_item_free              (PangoItem         *item);
++void                    pango_item_free_adapter      (gpointer           item,
++                                                      gpointer           dummy);
+ 
+ PANGO_AVAILABLE_IN_ALL
+ PangoItem *             pango_item_split             (PangoItem         *orig,
+diff --git a/pango/pango-layout.c b/pango/pango-layout.c
+index 59e0645..e51b0aa 100644
+--- a/pango/pango-layout.c
++++ b/pango/pango-layout.c
+@@ -3288,6 +3288,11 @@ free_run (PangoLayoutRun *run, gpointer data)
+   pango_glyph_string_free (run->glyphs);
+   g_slice_free (PangoLayoutRun, run);
+ }
++static void
++free_run_adapter (gpointer run, gpointer data)
++{
++   free_run ((PangoLayoutRun*) run, data);
++}
+ 
+ static PangoItem *
+ uninsert_run (PangoLayoutLine *line)
+@@ -5024,7 +5029,7 @@ pango_layout_line_unref (PangoLayoutLine *line)
+ 
+   if (g_atomic_int_dec_and_test ((int *) &private->ref_count))
+     {
+-      g_slist_foreach (line->runs, (GFunc)free_run, GINT_TO_POINTER (1));
++      g_slist_foreach (line->runs, free_run_adapter, GINT_TO_POINTER (1));
+       g_slist_free (line->runs);
+       g_slice_free (PangoLayoutLinePrivate, private);
+     }
+@@ -7278,6 +7283,11 @@ pango_layout_iter_free (PangoLayoutIter *iter)
+   _pango_layout_iter_destroy (iter);
+   g_slice_free (PangoLayoutIter, iter);
+ }
++void
++pango_layout_iter_free_adapter (gpointer iter)
++{
++   pango_layout_iter_free ((PangoLayoutIter*) iter);
++}
+ 
+ /**
+  * pango_layout_iter_get_index:
+diff --git a/pango/pango-layout.h b/pango/pango-layout.h
+index 12fc76c..afffc11 100644
+--- a/pango/pango-layout.h
++++ b/pango/pango-layout.h
+@@ -488,6 +488,7 @@ PANGO_AVAILABLE_IN_1_20
+ PangoLayoutIter *pango_layout_iter_copy (PangoLayoutIter *iter);
+ PANGO_AVAILABLE_IN_ALL
+ void             pango_layout_iter_free (PangoLayoutIter *iter);
++void             pango_layout_iter_free_adapter (gpointer iter);
+ 
+ PANGO_AVAILABLE_IN_ALL
+ int              pango_layout_iter_get_index  (PangoLayoutIter *iter);
+@@ -546,7 +547,7 @@ int  pango_layout_iter_get_run_baseline    (PangoLayoutIter *iter);
+ 
+ 
+ G_DEFINE_AUTOPTR_CLEANUP_FUNC(PangoLayout, g_object_unref)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(PangoLayoutIter, pango_layout_iter_free)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(PangoLayoutIter, pango_layout_iter_free_adapter)
+ 
+ G_END_DECLS
+ 
+diff --git a/pango/pango-markup.c b/pango/pango-markup.c
+index 9a3bde5..041933f 100644
+--- a/pango/pango-markup.c
++++ b/pango/pango-markup.c
+@@ -193,10 +193,15 @@ scale_factor (int scale_level, double base)
+ static void
+ open_tag_free (OpenTag *ot)
+ {
+-  g_slist_foreach (ot->attrs, (GFunc) pango_attribute_destroy, NULL);
++  g_slist_foreach (ot->attrs, pango_attribute_destroy_gfunc_adapter, NULL);
+   g_slist_free (ot->attrs);
+   g_slice_free (OpenTag, ot);
+ }
++static void
++open_tag_free_adapter (gpointer ot)
++{
++   open_tag_free ((OpenTag *) ot);
++}
+ 
+ static void
+ open_tag_set_absolute_font_size (OpenTag *ot,
+@@ -550,8 +555,8 @@ static const GMarkupParser pango_markup_parser = {
+ static void
+ destroy_markup_data (MarkupData *md)
+ {
+-  g_slist_free_full (md->tag_stack, (GDestroyNotify) open_tag_free);
+-  g_slist_free_full (md->to_apply, (GDestroyNotify) pango_attribute_destroy);
++  g_slist_free_full (md->tag_stack, open_tag_free_adapter);
++  g_slist_free_full (md->to_apply, pango_attribute_destroy_adapter);
+   if (md->text)
+       g_string_free (md->text, TRUE);
+ 
+@@ -560,6 +565,11 @@ destroy_markup_data (MarkupData *md)
+ 
+   g_slice_free (MarkupData, md);
+ }
++static void
++destroy_markup_data_adapter (gpointer md)
++{
++   destroy_markup_data ((MarkupData*) md);
++}
+ 
+ static GMarkupParseContext *
+ pango_markup_parser_new_internal (char       accel_marker,
+@@ -591,7 +601,7 @@ pango_markup_parser_new_internal (char       accel_marker,
+ 
+   context = g_markup_parse_context_new (&pango_markup_parser,
+ 					0, md,
+-                                        (GDestroyNotify)destroy_markup_data);
++                                        destroy_markup_data_adapter);
+ 
+   if (!g_markup_parse_context_parse (context, "<markup>", -1, error))
+     g_clear_pointer (&context, g_markup_parse_context_free);
+diff --git a/pango/pango-tabs.c b/pango/pango-tabs.c
+index bc8a7cb..8963424 100644
+--- a/pango/pango-tabs.c
++++ b/pango/pango-tabs.c
+@@ -209,6 +209,11 @@ pango_tab_array_free (PangoTabArray *tab_array)
+ 
+   g_slice_free (PangoTabArray, tab_array);
+ }
++void
++pango_tab_array_free_adapter (gpointer tab_array)
++{
++   pango_tab_array_free ((PangoTabArray*) tab_array);
++}
+ 
+ /**
+  * pango_tab_array_get_size:
+diff --git a/pango/pango-tabs.h b/pango/pango-tabs.h
+index 07b3353..9ac80ea 100644
+--- a/pango/pango-tabs.h
++++ b/pango/pango-tabs.h
+@@ -67,6 +67,7 @@ PANGO_AVAILABLE_IN_ALL
+ PangoTabArray  *pango_tab_array_copy                (PangoTabArray *src);
+ PANGO_AVAILABLE_IN_ALL
+ void            pango_tab_array_free                (PangoTabArray *tab_array);
++void            pango_tab_array_free_adapter        (gpointer       tab_array);
+ PANGO_AVAILABLE_IN_ALL
+ gint            pango_tab_array_get_size            (PangoTabArray *tab_array);
+ PANGO_AVAILABLE_IN_ALL
+@@ -110,7 +111,7 @@ gunichar        pango_tab_array_get_decimal_point   (PangoTabArray *tab_array,
+ PANGO_AVAILABLE_IN_1_50
+ void            pango_tab_array_sort                (PangoTabArray *tab_array);
+ 
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(PangoTabArray, pango_tab_array_free)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(PangoTabArray, pango_tab_array_free_adapter)
+ 
+ G_END_DECLS
+ 
+diff --git a/pango/pangocairo-context.c b/pango/pangocairo-context.c
+index 08a9067..268c538 100644
+--- a/pango/pangocairo-context.c
++++ b/pango/pangocairo-context.c
+@@ -58,6 +58,11 @@ free_context_info (PangoCairoContextInfo *info)
+ 
+   g_slice_free (PangoCairoContextInfo, info);
+ }
++static void
++free_context_info_adapter (gpointer info)
++{
++   free_context_info ((PangoCairoContextInfo*) info);
++}
+ 
+ static PangoCairoContextInfo *
+ get_context_info (PangoContext *context,
+@@ -78,7 +83,7 @@ retry:
+       info->dpi = -1.0;
+ 
+       if (!g_object_replace_qdata (G_OBJECT (context), context_info_quark, NULL,
+-                                   info, (GDestroyNotify)free_context_info,
++                                   info, free_context_info_adapter,
+                                    NULL))
+         {
+           free_context_info (info);
+diff --git a/pango/pangocairo-fcfont.c b/pango/pangocairo-fcfont.c
+index 02eefb6..f68866c 100644
+--- a/pango/pangocairo-fcfont.c
++++ b/pango/pangocairo-fcfont.c
+@@ -103,8 +103,14 @@ cairo_font_iface_init (PangoCairoFontIface *iface)
+   iface->cf_priv_offset = G_STRUCT_OFFSET (PangoCairoFcFont, cf_priv);
+ }
+ 
++static void
++cairo_font_iface_init_adapter (gpointer iface, gpointer dummy)
++{
++   cairo_font_iface_init ((PangoCairoFontIface*) iface);
++}
++
+ G_DEFINE_TYPE_WITH_CODE (PangoCairoFcFont, pango_cairo_fc_font, PANGO_TYPE_FC_FONT,
+-    { G_IMPLEMENT_INTERFACE (PANGO_TYPE_CAIRO_FONT, cairo_font_iface_init) })
++    { G_IMPLEMENT_INTERFACE (PANGO_TYPE_CAIRO_FONT, cairo_font_iface_init_adapter) })
+ 
+ static void
+ pango_cairo_fc_font_finalize (GObject *object)
+diff --git a/pango/pangocairo-fcfontmap.c b/pango/pangocairo-fcfontmap.c
+index dec59c8..f0f41db 100644
+--- a/pango/pangocairo-fcfontmap.c
++++ b/pango/pangocairo-fcfontmap.c
+@@ -94,9 +94,14 @@ cairo_font_map_iface_init (PangoCairoFontMapIface *iface)
+   iface->get_resolution = pango_cairo_fc_font_map_get_resolution_cairo;
+   iface->get_font_type  = pango_cairo_fc_font_map_get_font_type;
+ }
++static void
++cairo_font_map_iface_init_adapter (gpointer iface, gpointer dummy)
++{
++   cairo_font_map_iface_init ((PangoCairoFontMapIface*) iface);
++}
+ 
+ G_DEFINE_TYPE_WITH_CODE (PangoCairoFcFontMap, pango_cairo_fc_font_map, PANGO_TYPE_FC_FONT_MAP,
+-    { G_IMPLEMENT_INTERFACE (PANGO_TYPE_CAIRO_FONT_MAP, cairo_font_map_iface_init) })
++    { G_IMPLEMENT_INTERFACE (PANGO_TYPE_CAIRO_FONT_MAP, cairo_font_map_iface_init_adapter) })
+ 
+ static void
+ pango_cairo_fc_font_map_fontset_key_substitute (PangoFcFontMap    *fcfontmap G_GNUC_UNUSED,
+diff --git a/pango/pangocairo-font.c b/pango/pangocairo-font.c
+index 24bb325..76ac896 100644
+--- a/pango/pangocairo-font.c
++++ b/pango/pangocairo-font.c
+@@ -614,6 +614,11 @@ free_metrics_info (PangoCairoFontMetricsInfo *info)
+   pango_font_metrics_unref (info->metrics);
+   g_slice_free (PangoCairoFontMetricsInfo, info);
+ }
++static void
++free_metrics_info_gfunc_adapter (gpointer info, gpointer dummy)
++{
++   free_metrics_info ((PangoCairoFontMetricsInfo*) info);
++}
+ 
+ void
+ _pango_cairo_font_private_finalize (PangoCairoFontPrivate *cf_priv)
+@@ -631,7 +636,7 @@ _pango_cairo_font_private_finalize (PangoCairoFontPrivate *cf_priv)
+     g_free (cf_priv->glyph_extents_cache);
+   cf_priv->glyph_extents_cache = NULL;
+ 
+-  g_slist_foreach (cf_priv->metrics_by_lang, (GFunc)free_metrics_info, NULL);
++  g_slist_foreach (cf_priv->metrics_by_lang, free_metrics_info_gfunc_adapter, NULL);
+   g_slist_free (cf_priv->metrics_by_lang);
+   cf_priv->metrics_by_lang = NULL;
+ }
+diff --git a/pango/pangofc-font.c b/pango/pangofc-font.c
+index d0077b3..a691504 100644
+--- a/pango/pangofc-font.c
++++ b/pango/pangofc-font.c
+@@ -156,6 +156,11 @@ free_metrics_info (PangoFcMetricsInfo *info)
+   pango_font_metrics_unref (info->metrics);
+   g_slice_free (PangoFcMetricsInfo, info);
+ }
++static void
++free_metrics_info_gfunc_adapter (gpointer info, gpointer dummy)
++{
++  free_metrics_info ((PangoFcMetricsInfo*) info);
++}
+ 
+ static void
+ pango_fc_font_finalize (GObject *object)
+@@ -164,7 +169,7 @@ pango_fc_font_finalize (GObject *object)
+   PangoFcFontPrivate *priv = fcfont->priv;
+   PangoFcFontMap *fontmap;
+ 
+-  g_slist_foreach (fcfont->metrics_by_lang, (GFunc)free_metrics_info, NULL);
++  g_slist_foreach (fcfont->metrics_by_lang, free_metrics_info_gfunc_adapter, NULL);
+   g_slist_free (fcfont->metrics_by_lang);
+ 
+   fontmap = g_weak_ref_get ((GWeakRef *) &fcfont->fontmap);
+diff --git a/pango/pangofc-fontmap.c b/pango/pangofc-fontmap.c
+index 51f71cb..43e006a 100644
+--- a/pango/pangofc-fontmap.c
++++ b/pango/pangofc-fontmap.c
+@@ -30,6 +30,7 @@
+  * deriving from this base class will take advantage of the wide
+  * range of shapers implemented using FreeType that come with Pango.
+  */
++#include "pango-glyph-item.h"
+ #define FONTSET_CACHE_SIZE 256
+ 
+ #include "config.h"
+@@ -248,9 +249,12 @@ static PangoFontFace *pango_fc_font_map_get_face (PangoFontMap *fontmap,
+ 
+ static void pango_fc_font_map_changed (PangoFontMap *fontmap);
+ 
+-static guint    pango_fc_font_face_data_hash  (PangoFcFontFaceData *key);
+-static gboolean pango_fc_font_face_data_equal (PangoFcFontFaceData *key1,
+-					       PangoFcFontFaceData *key2);
++static guint    pango_fc_font_face_data_hash  (const PangoFcFontFaceData *key);
++static guint    pango_fc_font_face_data_hash_adapter  (gconstpointer key);
++static gboolean pango_fc_font_face_data_equal (const PangoFcFontFaceData *key1,
++					       const PangoFcFontFaceData *key2);
++static gboolean pango_fc_font_face_data_equal_adapter (gconstpointer key1,
++					       gconstpointer key2);
+ 
+ static void               pango_fc_fontset_key_init  (PangoFcFontsetKey          *key,
+ 						      PangoFcFontMap             *fcfontmap,
+@@ -260,8 +264,11 @@ static void               pango_fc_fontset_key_init  (PangoFcFontsetKey
+ static PangoFcFontsetKey *pango_fc_fontset_key_copy  (const PangoFcFontsetKey *key);
+ static void               pango_fc_fontset_key_free  (PangoFcFontsetKey       *key);
+ static guint              pango_fc_fontset_key_hash  (const PangoFcFontsetKey *key);
++static guint              pango_fc_fontset_key_hash_adapter  (gconstpointer key);
+ static gboolean           pango_fc_fontset_key_equal (const PangoFcFontsetKey *key_a,
+ 						      const PangoFcFontsetKey *key_b);
++static gboolean           pango_fc_fontset_key_equal_adapter (gconstpointer key_a,
++						      gconstpointer key_b);
+ 
+ static void               pango_fc_font_key_init     (PangoFcFontKey       *key,
+ 						      PangoFcFontMap       *fcfontmap,
+@@ -270,8 +277,11 @@ static void               pango_fc_font_key_init     (PangoFcFontKey       *key,
+ static PangoFcFontKey    *pango_fc_font_key_copy     (const PangoFcFontKey *key);
+ static void               pango_fc_font_key_free     (PangoFcFontKey       *key);
+ static guint              pango_fc_font_key_hash     (const PangoFcFontKey *key);
++static guint              pango_fc_font_key_hash_adapter     (gconstpointer key);
+ static gboolean           pango_fc_font_key_equal    (const PangoFcFontKey *key_a,
+ 						      const PangoFcFontKey *key_b);
++static gboolean           pango_fc_font_key_equal_adapter    (gconstpointer key_a,
++						      gconstpointer key_b);
+ 
+ static PangoFcPatterns *pango_fc_patterns_new   (FcPattern       *pat,
+ 						 PangoFcFontMap  *fontmap);
+@@ -299,18 +309,29 @@ get_gravity_class (void)
+ }
+ 
+ static guint
+-pango_fc_font_face_data_hash (PangoFcFontFaceData *key)
++pango_fc_font_face_data_hash (const PangoFcFontFaceData *key)
+ {
+   return g_str_hash (key->filename) ^ key->id;
+ }
++static guint
++pango_fc_font_face_data_hash_adapter (gconstpointer key)
++{
++   return pango_fc_font_face_data_hash ((PangoFcFontFaceData*) key);
++}
+ 
+ static gboolean
+-pango_fc_font_face_data_equal (PangoFcFontFaceData *key1,
+-			       PangoFcFontFaceData *key2)
++pango_fc_font_face_data_equal (const PangoFcFontFaceData *key1,
++			       const PangoFcFontFaceData *key2)
+ {
+   return key1->id == key2->id &&
+ 	 (key1 == key2 || 0 == strcmp (key1->filename, key2->filename));
+ }
++static gboolean
++pango_fc_font_face_data_equal_adapter (gconstpointer key1,
++                gconstpointer key2)
++{
++  return pango_fc_font_face_data_equal ((const PangoFcFontFaceData*) key1, (const PangoFcFontFaceData*) key2);
++}
+ 
+ static void
+ pango_fc_font_face_data_free (PangoFcFontFaceData *data)
+@@ -326,6 +347,11 @@ pango_fc_font_face_data_free (PangoFcFontFaceData *data)
+ 
+   g_slice_free (PangoFcFontFaceData, data);
+ }
++static void
++pango_fc_font_face_data_free_adapter (gpointer data)
++{
++   pango_fc_font_face_data_free ((PangoFcFontFaceData*) data);
++}
+ 
+ /* Fowler / Noll / Vo (FNV) Hash (http://www.isthe.com/chongo/tech/comp/fnv/)
+  *
+@@ -447,6 +473,12 @@ pango_fc_fontset_key_equal (const PangoFcFontsetKey *key_a,
+   else
+     return FALSE;
+ }
++static gboolean
++pango_fc_fontset_key_equal_adapter (gconstpointer key_a,
++			    gconstpointer key_b)
++{
++   return pango_fc_fontset_key_equal ((const PangoFcFontsetKey*) key_a, (const PangoFcFontsetKey*) key_b);
++}
+ 
+ static guint
+ pango_fc_fontset_key_hash (const PangoFcFontsetKey *key)
+@@ -470,6 +502,11 @@ pango_fc_fontset_key_hash (const PangoFcFontsetKey *key)
+ 	    GPOINTER_TO_UINT (key->language) ^
+ 	    pango_font_description_hash (key->desc));
+ }
++static guint
++pango_fc_fontset_key_hash_adapter (gconstpointer key)
++{
++   return pango_fc_fontset_key_hash ((const PangoFcFontsetKey*) key);
++}
+ 
+ static void
+ pango_fc_fontset_key_free (PangoFcFontsetKey *key)
+@@ -627,6 +664,12 @@ pango_fc_font_key_equal (const PangoFcFontKey *key_a,
+   else
+     return FALSE;
+ }
++static gboolean
++pango_fc_font_key_equal_adapter (gconstpointer key_a,
++			 gconstpointer key_b)
++{
++   return pango_fc_font_key_equal ((const PangoFcFontKey*) key_a, (const PangoFcFontKey*) key_b);
++}
+ 
+ static guint
+ pango_fc_font_key_hash (const PangoFcFontKey *key)
+@@ -645,6 +688,11 @@ pango_fc_font_key_hash (const PangoFcFontKey *key)
+ 
+     return (hash ^ GPOINTER_TO_UINT (key->pattern));
+ }
++static guint
++pango_fc_font_key_hash_adapter (gconstpointer key)
++{
++   return pango_fc_font_key_hash ((PangoFcFontKey*) key);
++}
+ 
+ static void
+ pango_fc_font_key_free (PangoFcFontKey *key)
+@@ -1354,10 +1402,15 @@ pango_fc_font_map_list_model_init (GListModelInterface *iface)
+   iface->get_n_items = pango_fc_font_map_get_n_items;
+   iface->get_item = pango_fc_font_map_get_item;
+ }
++static void
++pango_fc_font_map_list_model_init_adapter (gpointer iface, gpointer dummy)
++{
++   pango_fc_font_map_list_model_init ((GListModelInterface *) iface);
++}
+ 
+ G_DEFINE_ABSTRACT_TYPE_WITH_CODE (PangoFcFontMap, pango_fc_font_map, PANGO_TYPE_FONT_MAP,
+                                   G_ADD_PRIVATE (PangoFcFontMap)
+-                                  G_IMPLEMENT_INTERFACE (G_TYPE_LIST_MODEL, pango_fc_font_map_list_model_init))
++                                  G_IMPLEMENT_INTERFACE (G_TYPE_LIST_MODEL, pango_fc_font_map_list_model_init_adapter))
+ 
+ static gpointer
+ init_in_thread (gpointer task_data)
+@@ -1415,6 +1468,32 @@ wait_for_fc_init (void)
+     pango_trace_mark (before, "wait for FcInit", NULL);
+ }
+ 
++static guint32
++FcPatternHashAdapter(gconstpointer fcpattern )
++{
++   FcChar32 result = FcPatternHash((const FcPattern*) fcpattern);
++   return (guint32) result;
++}
++
++static gboolean
++FcPatternEqualAdapter(gconstpointer a, gconstpointer b)
++{
++   FcBool result = FcPatternEqual((const FcPattern*) a, (const FcPattern*) b);
++   return (gboolean) result;
++}
++
++static void
++FcPatternDestroyAdapter (gpointer fcpattern)
++{
++   FcPatternDestroy((FcPattern*) fcpattern);
++}
++
++static void
++my_g_object_unref_adapter (gpointer obj)
++{
++  g_object_unref (obj);
++}
++
+ static void
+ pango_fc_font_map_init (PangoFcFontMap *fcfontmap)
+ {
+@@ -1424,25 +1503,25 @@ pango_fc_font_map_init (PangoFcFontMap *fcfontmap)
+ 
+   priv->n_families = -1;
+ 
+-  priv->font_hash = g_hash_table_new ((GHashFunc)pango_fc_font_key_hash,
+-				      (GEqualFunc)pango_fc_font_key_equal);
++  priv->font_hash = g_hash_table_new (pango_fc_font_key_hash_adapter,
++				      pango_fc_font_key_equal_adapter);
+ 
+-  priv->fontset_hash = g_hash_table_new_full ((GHashFunc)pango_fc_fontset_key_hash,
+-					      (GEqualFunc)pango_fc_fontset_key_equal,
++  priv->fontset_hash = g_hash_table_new_full (pango_fc_fontset_key_hash_adapter,
++					      pango_fc_fontset_key_equal_adapter,
+ 					      NULL,
+-					      (GDestroyNotify)g_object_unref);
++					      my_g_object_unref_adapter);
+   priv->fontset_cache = g_queue_new ();
+ 
+   priv->patterns_hash = g_hash_table_new (NULL, NULL);
+ 
+-  priv->pattern_hash = g_hash_table_new_full ((GHashFunc) FcPatternHash,
+-					      (GEqualFunc) FcPatternEqual,
+-					      (GDestroyNotify) FcPatternDestroy,
++  priv->pattern_hash = g_hash_table_new_full (FcPatternHashAdapter,
++					      FcPatternEqualAdapter,
++					      FcPatternDestroyAdapter,
+ 					      NULL);
+ 
+-  priv->font_face_data_hash = g_hash_table_new_full ((GHashFunc)pango_fc_font_face_data_hash,
+-						     (GEqualFunc)pango_fc_font_face_data_equal,
+-						     (GDestroyNotify)pango_fc_font_face_data_free,
++  priv->font_face_data_hash = g_hash_table_new_full (pango_fc_font_face_data_hash_adapter,
++						     pango_fc_font_face_data_equal_adapter,
++						     pango_fc_font_face_data_free_adapter,
+ 						     NULL);
+   priv->dpi = -1;
+ 
+@@ -2656,6 +2735,13 @@ shutdown_font (gpointer        key,
+   _pango_fc_font_set_font_key (fcfont, NULL);
+   pango_fc_font_key_free (key);
+ }
++static void
++shutdown_font_adapter (gpointer        key,
++	       gpointer fcfont,
++	       gpointer fcfontmap)
++{
++   shutdown_font (key, (PangoFcFont*) fcfont, (PangoFcFontMap*) fcfontmap);
++}
+ 
+ /**
+  * pango_fc_font_map_shutdown:
+@@ -2682,7 +2768,7 @@ pango_fc_font_map_shutdown (PangoFcFontMap *fcfontmap)
+   if (priv->closed)
+     return;
+ 
+-  g_hash_table_foreach (priv->font_hash, (GHFunc) shutdown_font, fcfontmap);
++  g_hash_table_foreach (priv->font_hash, shutdown_font_adapter, fcfontmap);
+   for (i = 0; i < priv->n_families; i++)
+     priv->families[i]->fontmap = NULL;
+ 
+@@ -3174,9 +3260,14 @@ pango_fc_family_list_model_init (GListModelInterface *iface)
+   iface->get_n_items = pango_fc_family_get_n_items;
+   iface->get_item = pango_fc_family_get_item;
+ }
++static void
++pango_fc_family_list_model_init_adapter (gpointer iface, gpointer dummy)
++{
++   pango_fc_family_list_model_init ((GListModelInterface *) iface);
++}
+ 
+ G_DEFINE_TYPE_WITH_CODE (PangoFcFamily, pango_fc_family, PANGO_TYPE_FONT_FAMILY,
+-                         G_IMPLEMENT_INTERFACE (G_TYPE_LIST_MODEL, pango_fc_family_list_model_init))
++                         G_IMPLEMENT_INTERFACE (G_TYPE_LIST_MODEL, pango_fc_family_list_model_init_adapter))
+ 
+ static PangoFcFace *
+ create_face (PangoFcFamily *fcfamily,
+diff --git a/pango/pangoft2-render.c b/pango/pangoft2-render.c
+index f2da8e7..9236da6 100644
+--- a/pango/pangoft2-render.c
++++ b/pango/pangoft2-render.c
+@@ -100,6 +100,11 @@ pango_ft2_free_rendered_glyph (PangoFT2RenderedGlyph *rendered)
+   g_free (rendered->bitmap.buffer);
+   g_slice_free (PangoFT2RenderedGlyph, rendered);
+ }
++static void
++pango_ft2_free_rendered_glyph_adapter (gpointer rendered)
++{
++   pango_ft2_free_rendered_glyph ((PangoFT2RenderedGlyph*) rendered);
++}
+ 
+ static PangoFT2RenderedGlyph *
+ pango_ft2_font_render_box_glyph (int      width,
+@@ -372,7 +377,7 @@ pango_ft2_renderer_draw_glyph (PangoRenderer *renderer,
+   if (add_glyph_to_cache)
+     {
+       _pango_ft2_font_set_glyph_cache_destroy (font,
+-					       (GDestroyNotify) pango_ft2_free_rendered_glyph);
++					       pango_ft2_free_rendered_glyph_adapter);
+       _pango_ft2_font_set_cache_glyph_data (font,
+ 					    glyph, rendered_glyph);
+     }
+diff --git a/pango/serializer.c b/pango/serializer.c
+index e3a2280..7e0f559 100644
+--- a/pango/serializer.c
++++ b/pango/serializer.c
+@@ -410,7 +410,7 @@ add_attr_list (GtkJsonPrinter *printer,
+       PangoAttribute *attr = l->data;
+       add_attribute (printer, attr);
+     }
+-  g_slist_free_full (attributes, (GDestroyNotify) pango_attribute_destroy);
++  g_slist_free_full (attributes, pango_attribute_destroy_adapter);
+ 
+   gtk_json_printer_end (printer);
+ }
+diff --git a/pango/shape.c b/pango/shape.c
+index acf4be5..a2059f0 100644
+--- a/pango/shape.c
++++ b/pango/shape.c
+@@ -414,7 +414,8 @@ pango_hb_shape (const char          *item_text,
+   /* setup buffer */
+ 
+   hb_buffer_set_direction (hb_buffer, hb_direction);
+-  hb_buffer_set_script (hb_buffer, (hb_script_t) g_unicode_script_to_iso15924 (analysis->script));
++  guint32 result = g_unicode_script_to_iso15924 (analysis->script);
++  hb_buffer_set_script (hb_buffer, (hb_script_t) result);
+   hb_buffer_set_language (hb_buffer, hb_language_from_string (pango_language_to_string (analysis->language), -1));
+   hb_buffer_set_cluster_level (hb_buffer, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
+   hb_buffer_set_flags (hb_buffer, hb_buffer_flags);

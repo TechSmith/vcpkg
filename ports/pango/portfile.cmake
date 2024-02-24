@@ -8,6 +8,7 @@ vcpkg_from_gitlab(
     HEAD_REF master
     PATCHES
       emscripten.patch
+      remove-func-ptr-casts.patch
 ) 
 
 # Fix for https://github.com/microsoft/vcpkg/issues/31573

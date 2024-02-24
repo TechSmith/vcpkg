@@ -1,0 +1,3653 @@
+diff --git a/glib/garray.c b/glib/garray.c
+index deef2ca..7375fcc 100644
+--- a/glib/garray.c
++++ b/glib/garray.c
+@@ -506,6 +506,11 @@ g_array_unref (GArray *array)
+   if (g_atomic_ref_count_dec (&rarray->ref_count))
+     array_free (rarray, FREE_SEGMENT);
+ }
++void
++g_array_unref_adapter (gpointer array)
++{
++  g_array_unref ((GArray*) array);
++}
+ 
+ /**
+  * g_array_get_element_size:
+@@ -1865,6 +1870,11 @@ g_ptr_array_unref (GPtrArray *array)
+   if (g_atomic_ref_count_dec (&rarray->ref_count))
+     ptr_array_free (array, FREE_SEGMENT);
+ }
++void
++g_ptr_array_unref_adapter (gpointer array)
++{
++  g_ptr_array_unref ((GPtrArray*) array);
++}
+ 
+ /**
+  * g_ptr_array_free:
+@@ -2499,7 +2509,7 @@ g_ptr_array_insert (GPtrArray *array,
+  */
+ void
+ g_ptr_array_sort (GPtrArray    *array,
+-                  GCompareFunc  compare_func)
++                  GCompareDataFunc  compare_func)
+ {
+   g_return_if_fail (array != NULL);
+ 
+@@ -2508,7 +2518,7 @@ g_ptr_array_sort (GPtrArray    *array,
+     g_qsort_with_data (array->pdata,
+                        array->len,
+                        sizeof (gpointer),
+-                       (GCompareDataFunc)compare_func,
++                       compare_func,
+                        NULL);
+ }
+ 
+@@ -2983,6 +2993,11 @@ g_byte_array_unref (GByteArray *array)
+ {
+   g_array_unref ((GArray *)array);
+ }
++void
++g_byte_array_unref_adapter (gpointer array)
++{
++  g_byte_array_unref ((GByteArray*) array);
++}
+ 
+ /**
+  * g_byte_array_append:
+diff --git a/glib/garray.h b/glib/garray.h
+index 5dc32b2..ace6139 100644
+--- a/glib/garray.h
++++ b/glib/garray.h
+@@ -98,6 +98,7 @@ GLIB_AVAILABLE_IN_ALL
+ GArray *g_array_ref               (GArray           *array);
+ GLIB_AVAILABLE_IN_ALL
+ void    g_array_unref             (GArray           *array);
++void    g_array_unref_adapter     (gpointer          array);
+ GLIB_AVAILABLE_IN_ALL
+ guint   g_array_get_element_size  (GArray           *array);
+ GLIB_AVAILABLE_IN_ALL
+@@ -192,6 +193,7 @@ GLIB_AVAILABLE_IN_ALL
+ GPtrArray* g_ptr_array_ref                (GPtrArray        *array);
+ GLIB_AVAILABLE_IN_ALL
+ void       g_ptr_array_unref              (GPtrArray        *array);
++void       g_ptr_array_unref_adapter      (gpointer          array);
+ GLIB_AVAILABLE_IN_ALL
+ void       g_ptr_array_set_free_func      (GPtrArray        *array,
+                                            GDestroyNotify    element_free_func);
+@@ -237,7 +239,7 @@ void       g_ptr_array_insert             (GPtrArray        *array,
+                                            gpointer          data);
+ GLIB_AVAILABLE_IN_ALL
+ void       g_ptr_array_sort               (GPtrArray        *array,
+-					   GCompareFunc      compare_func);
++					   GCompareDataFunc      compare_func);
+ GLIB_AVAILABLE_IN_ALL
+ void       g_ptr_array_sort_with_data     (GPtrArray        *array,
+ 					   GCompareDataFunc  compare_func,
+@@ -289,6 +291,7 @@ GLIB_AVAILABLE_IN_ALL
+ GByteArray *g_byte_array_ref               (GByteArray       *array);
+ GLIB_AVAILABLE_IN_ALL
+ void        g_byte_array_unref             (GByteArray       *array);
++void        g_byte_array_unref_adapter     (gpointer          array);
+ GLIB_AVAILABLE_IN_ALL
+ GByteArray* g_byte_array_append            (GByteArray       *array,
+ 					    const guint8     *data,
+diff --git a/glib/gbookmarkfile.c b/glib/gbookmarkfile.c
+index 3988e36..f494cbc 100644
+--- a/glib/gbookmarkfile.c
++++ b/glib/gbookmarkfile.c
+@@ -51,6 +51,11 @@
+ #include "gtimer.h"
+ #include "gutils.h"
+ 
++static gpointer g_strdup_adapter(gconstpointer data, gpointer dummy G_GNUC_UNUSED)
++{
++  gchar* result = g_strdup((gchar*) data);
++  return (gpointer) result;
++}
+ 
+ /**
+  * SECTION:bookmarkfile
+@@ -286,6 +291,11 @@ bookmark_app_info_free (BookmarkAppInfo *app_info)
+ 
+   g_slice_free (BookmarkAppInfo, app_info);
+ }
++static void
++bookmark_app_info_free_adapter (gpointer app_info)
++{
++  bookmark_app_info_free ((BookmarkAppInfo*) app_info);
++}
+ 
+ static BookmarkAppInfo *
+ bookmark_app_info_copy (BookmarkAppInfo *app_info)
+@@ -304,6 +314,12 @@ bookmark_app_info_copy (BookmarkAppInfo *app_info)
+ 
+   return copy;
+ }
++static gpointer
++bookmark_app_info_copy_adapter (gconstpointer app_info, gpointer dummy G_GNUC_UNUSED)
++{
++  BookmarkAppInfo* result = bookmark_app_info_copy ((BookmarkAppInfo*) app_info);
++  return (gpointer) result;
++}
+ 
+ static gchar *
+ bookmark_app_info_dump (BookmarkAppInfo *app_info)
+@@ -390,7 +406,7 @@ bookmark_metadata_free (BookmarkMetadata *metadata)
+   g_free (metadata->mime_type);
+ 
+   g_list_free_full (metadata->groups, g_free);
+-  g_list_free_full (metadata->applications, (GDestroyNotify) bookmark_app_info_free);
++  g_list_free_full (metadata->applications, bookmark_app_info_free_adapter);
+ 
+   g_hash_table_destroy (metadata->apps_by_name);
+ 
+@@ -415,9 +431,9 @@ bookmark_metadata_copy (BookmarkMetadata *metadata)
+   copy->icon_href = g_strdup (metadata->icon_href);
+   copy->icon_mime = g_strdup (metadata->icon_mime);
+ 
+-  copy->groups = g_list_copy_deep (metadata->groups, (GCopyFunc) g_strdup, NULL);
++  copy->groups = g_list_copy_deep (metadata->groups, g_strdup_adapter, NULL);
+   copy->applications =
+-    g_list_copy_deep (metadata->applications, (GCopyFunc) bookmark_app_info_copy, NULL);
++    g_list_copy_deep (metadata->applications, bookmark_app_info_copy_adapter, NULL);
+ 
+   for (l = copy->applications; l; l = l->next)
+     {
+@@ -604,6 +620,11 @@ bookmark_item_free (BookmarkItem *item)
+ 
+   g_slice_free (BookmarkItem, item);
+ }
++static void
++bookmark_item_free_adapter (gpointer item)
++{
++  bookmark_item_free ((BookmarkItem*) item);
++}
+ 
+ static BookmarkItem *
+ bookmark_item_copy (BookmarkItem *item)
+@@ -629,6 +650,12 @@ bookmark_item_copy (BookmarkItem *item)
+ 
+   return copy;
+ }
++static gpointer
++bookmark_item_copy_adapter (gconstpointer item, gpointer dummy G_GNUC_UNUSED)
++{
++  BookmarkItem* result = bookmark_item_copy ((BookmarkItem*) item);
++  return (gpointer) result;
++}
+ 
+ static void
+ bookmark_item_touch_modified (BookmarkItem *item)
+@@ -780,7 +807,7 @@ g_bookmark_file_clear (GBookmarkFile *bookmark)
+   g_free (bookmark->title);
+   g_free (bookmark->description);
+ 
+-  g_list_free_full (bookmark->items, (GDestroyNotify) bookmark_item_free);
++  g_list_free_full (bookmark->items, bookmark_item_free_adapter);
+   bookmark->items = NULL;
+ 
+   g_clear_pointer (&bookmark->items_by_uri, g_hash_table_unref);
+@@ -820,6 +847,11 @@ parse_data_free (ParseData *parse_data)
+ 
+   g_free (parse_data);
+ }
++static void
++parse_data_free_adapter (gpointer parse_data)
++{
++  parse_data_free ((ParseData*) parse_data);
++}
+ 
+ #define IS_ATTRIBUTE(s,a)	((0 == strcmp ((s), (a))))
+ 
+@@ -1594,7 +1626,7 @@ g_bookmark_file_parse (GBookmarkFile  *bookmark,
+   context = g_markup_parse_context_new (&markup_parser,
+   					G_MARKUP_DEFAULT_FLAGS,
+   					parse_data,
+-  					(GDestroyNotify) parse_data_free);
++  					parse_data_free_adapter);
+ 
+   retval = g_markup_parse_context_parse (context,
+   					 buffer,
+@@ -1775,7 +1807,7 @@ g_bookmark_file_copy (GBookmarkFile *bookmark)
+   copy = g_bookmark_file_new ();
+   copy->title = g_strdup (bookmark->title);
+   copy->description = g_strdup (bookmark->description);
+-  copy->items = g_list_copy_deep (bookmark->items, (GCopyFunc) bookmark_item_copy, NULL);
++  copy->items = g_list_copy_deep (bookmark->items, bookmark_item_copy_adapter, NULL);
+ 
+   for (l = copy->items; l; l = l->next)
+     {
+@@ -1807,6 +1839,11 @@ g_bookmark_file_free (GBookmarkFile *bookmark)
+ 
+   g_free (bookmark);
+ }
++void
++g_bookmark_file_free_adapter (gpointer bookmark)
++{
++  g_bookmark_file_free ((GBookmarkFile*) bookmark);
++}
+ 
+ /**
+  * g_bookmark_file_load_from_data:
+diff --git a/glib/gbookmarkfile.h b/glib/gbookmarkfile.h
+index f753420..d47e692 100644
+--- a/glib/gbookmarkfile.h
++++ b/glib/gbookmarkfile.h
+@@ -83,6 +83,7 @@ GLIB_AVAILABLE_IN_ALL
+ GBookmarkFile *g_bookmark_file_new                 (void);
+ GLIB_AVAILABLE_IN_ALL
+ void           g_bookmark_file_free                (GBookmarkFile  *bookmark);
++void           g_bookmark_file_free_adapter        (gpointer        bookmark);
+ 
+ GLIB_AVAILABLE_IN_2_76
+ GBookmarkFile *g_bookmark_file_copy                (GBookmarkFile  *bookmark);
+diff --git a/glib/gbytes.c b/glib/gbytes.c
+index e4d2697..1698b98 100644
+--- a/glib/gbytes.c
++++ b/glib/gbytes.c
+@@ -247,7 +247,7 @@ g_bytes_new_from_bytes (GBytes  *bytes,
+   g_return_val_if_fail (base + length <= (gchar *)bytes->data + bytes->size, NULL);
+ 
+   return g_bytes_new_with_free_func (base, length,
+-                                     (GDestroyNotify)g_bytes_unref, g_bytes_ref (bytes));
++                                     g_bytes_unref_adapter, g_bytes_ref (bytes));
+ }
+ 
+ /**
+@@ -328,6 +328,11 @@ g_bytes_ref (GBytes *bytes)
+  * Since: 2.32
+  */
+ void
++g_bytes_unref_adapter (gpointer bytes)
++{
++  g_bytes_unref ((GBytes*) bytes);
++}
++void
+ g_bytes_unref (GBytes *bytes)
+ {
+   if (bytes == NULL)
+@@ -611,4 +616,4 @@ g_bytes_get_region (GBytes *bytes,
+    */
+ 
+   return ((guchar *) bytes->data) + offset;
+-}
+\ No newline at end of file
++}
+diff --git a/glib/gbytes.h b/glib/gbytes.h
+index d934989..70f4825 100644
+--- a/glib/gbytes.h
++++ b/glib/gbytes.h
+@@ -67,6 +67,7 @@ GLIB_AVAILABLE_IN_ALL
+ GBytes *        g_bytes_ref                     (GBytes         *bytes);
+ 
+ GLIB_AVAILABLE_IN_ALL
++void            g_bytes_unref_adapter           (gpointer        bytes);
+ void            g_bytes_unref                   (GBytes         *bytes);
+ 
+ GLIB_AVAILABLE_IN_ALL
+diff --git a/glib/gcharset.c b/glib/gcharset.c
+index 82cd0a7..cd263ea 100644
+--- a/glib/gcharset.c
++++ b/glib/gcharset.c
+@@ -795,7 +795,7 @@ g_get_language_names (void)
+ const gchar * const *
+ g_get_language_names_with_category (const gchar *category_name)
+ {
+-  static GPrivate cache_private = G_PRIVATE_INIT ((void (*)(gpointer)) g_hash_table_unref);
++  static GPrivate cache_private = G_PRIVATE_INIT (g_hash_table_unref_adapter);
+   GHashTable *cache = g_private_get (&cache_private);
+   const gchar *languages;
+   GLanguageNamesCache *name_cache;
+diff --git a/glib/gchecksum.c b/glib/gchecksum.c
+index fea7803..f5aa14a 100644
+--- a/glib/gchecksum.c
++++ b/glib/gchecksum.c
+@@ -1569,6 +1569,11 @@ g_checksum_free (GChecksum *checksum)
+       g_slice_free (GChecksum, checksum);
+     }
+ }
++void
++g_checksum_free_adapter (gpointer checksum)
++{
++  g_checksum_free ((GChecksum*) checksum);
++}
+ 
+ /**
+  * g_checksum_update:
+diff --git a/glib/gchecksum.h b/glib/gchecksum.h
+index e5c54e7..e035ed1 100644
+--- a/glib/gchecksum.h
++++ b/glib/gchecksum.h
+@@ -77,6 +77,7 @@ GLIB_AVAILABLE_IN_ALL
+ GChecksum *           g_checksum_copy               (const GChecksum *checksum);
+ GLIB_AVAILABLE_IN_ALL
+ void                  g_checksum_free               (GChecksum       *checksum);
++void                  g_checksum_free_adapter       (gpointer         checksum);
+ GLIB_AVAILABLE_IN_ALL
+ void                  g_checksum_update             (GChecksum       *checksum,
+                                                      const guchar    *data,
+diff --git a/glib/gdate.c b/glib/gdate.c
+index 85892ec..e91ef6f 100644
+--- a/glib/gdate.c
++++ b/glib/gdate.c
+@@ -365,6 +365,11 @@ g_date_free (GDate *date)
+   
+   g_free (date);
+ }
++void
++g_date_free_adapter (gpointer date)
++{
++  g_date_free((GDate*) date);
++}
+ 
+ /**
+  * g_date_copy:
+diff --git a/glib/gdate.h b/glib/gdate.h
+index 5ef21cb..c8c9d30 100644
+--- a/glib/gdate.h
++++ b/glib/gdate.h
+@@ -129,6 +129,7 @@ GLIB_AVAILABLE_IN_ALL
+ GDate*       g_date_new_julian            (guint32      julian_day);
+ GLIB_AVAILABLE_IN_ALL
+ void         g_date_free                  (GDate       *date);
++void         g_date_free_adapter          (gpointer     date);
+ GLIB_AVAILABLE_IN_2_56
+ GDate*       g_date_copy                  (const GDate *date);
+ 
+diff --git a/glib/gdatetime.c b/glib/gdatetime.c
+index 2640e3b..1b310c9 100644
+--- a/glib/gdatetime.c
++++ b/glib/gdatetime.c
+@@ -726,6 +726,11 @@ g_date_time_unref (GDateTime *datetime)
+       g_slice_free (GDateTime, datetime);
+     }
+ }
++void
++g_date_time_unref_adapter (gpointer datetime)
++{
++  g_date_time_unref((GDateTime*) datetime);
++}
+ 
+ /* Internal state transformers {{{1 */
+ /*< internal >
+diff --git a/glib/gdatetime.h b/glib/gdatetime.h
+index 4312433..24c958a 100644
+--- a/glib/gdatetime.h
++++ b/glib/gdatetime.h
+@@ -99,6 +99,7 @@ typedef struct _GDateTime GDateTime;
+ 
+ GLIB_AVAILABLE_IN_ALL
+ void                    g_date_time_unref                               (GDateTime      *datetime);
++void                    g_date_time_unref_adapter                       (gpointer        datetime);
+ GLIB_AVAILABLE_IN_ALL
+ GDateTime *             g_date_time_ref                                 (GDateTime      *datetime);
+ 
+diff --git a/glib/gdir.c b/glib/gdir.c
+index c9283de..bbabf69 100644
+--- a/glib/gdir.c
++++ b/glib/gdir.c
+@@ -305,6 +305,11 @@ g_dir_close (GDir *dir)
+ #endif
+   g_free (dir);
+ }
++void
++g_dir_close_adapter (gpointer dir)
++{
++  g_dir_close ((GDir*) dir);
++}
+ 
+ #ifdef G_OS_WIN32
+ 
+diff --git a/glib/gdir.h b/glib/gdir.h
+index 0d3ee82..b8da6de 100644
+--- a/glib/gdir.h
++++ b/glib/gdir.h
+@@ -48,6 +48,7 @@ GLIB_AVAILABLE_IN_ALL
+ void                     g_dir_rewind         (GDir         *dir);
+ GLIB_AVAILABLE_IN_ALL
+ void                     g_dir_close          (GDir         *dir);
++void                     g_dir_close_adapter  (gpointer      dir);
+ 
+ G_END_DECLS
+ 
+diff --git a/glib/gerror.c b/glib/gerror.c
+index 7ac85fc..d577d9d 100644
+--- a/glib/gerror.c
++++ b/glib/gerror.c
+@@ -872,6 +872,11 @@ g_error_free (GError *error)
+ #endif
+   g_slice_free1 (private_size + sizeof (GError), allocated);
+ }
++void
++g_error_free_adapter (gpointer error)
++{
++  g_error_free ((GError*) error);
++}
+ 
+ /**
+  * g_error_copy:
+diff --git a/glib/gerror.h b/glib/gerror.h
+index 1aebfbe..22b597b 100644
+--- a/glib/gerror.h
++++ b/glib/gerror.h
+@@ -206,6 +206,7 @@ GError*  g_error_new_valist    (GQuark         domain,
+ 
+ GLIB_AVAILABLE_IN_ALL
+ void     g_error_free          (GError        *error);
++void     g_error_free_adapter  (gpointer       error);
+ GLIB_AVAILABLE_IN_ALL
+ GError*  g_error_copy          (const GError  *error);
+ 
+diff --git a/glib/ghash.c b/glib/ghash.c
+index 132e3ac..5184582 100644
+--- a/glib/ghash.c
++++ b/glib/ghash.c
+@@ -1496,6 +1496,11 @@ g_hash_table_unref (GHashTable *hash_table)
+       g_slice_free (GHashTable, hash_table);
+     }
+ }
++void
++g_hash_table_unref_adapter (gpointer hash_table)
++{
++  g_hash_table_unref ((GHashTable*) hash_table);
++}
+ 
+ /**
+  * g_hash_table_destroy:
+diff --git a/glib/ghash.h b/glib/ghash.h
+index 3eb8f3b..f9a5dc6 100644
+--- a/glib/ghash.h
++++ b/glib/ghash.h
+@@ -160,6 +160,7 @@ void        g_hash_table_iter_steal        (GHashTableIter *iter);
+ GLIB_AVAILABLE_IN_ALL
+ GHashTable* g_hash_table_ref               (GHashTable     *hash_table);
+ GLIB_AVAILABLE_IN_ALL
++void        g_hash_table_unref_adapter     (gpointer        hash_table);
+ void        g_hash_table_unref             (GHashTable     *hash_table);
+ 
+ #define g_hash_table_freeze(hash_table) ((void)0) GLIB_DEPRECATED_MACRO_IN_2_26
+diff --git a/glib/giochannel.c b/glib/giochannel.c
+index 7572c47..3eb879a 100644
+--- a/glib/giochannel.c
++++ b/glib/giochannel.c
+@@ -257,6 +257,11 @@ g_io_channel_unref (GIOChannel *channel)
+       channel->funcs->io_free (channel);
+     }
+ }
++void 
++g_io_channel_unref_adapter (gpointer channel)
++{
++  g_io_channel_unref ((GIOChannel*) channel);
++}
+ 
+ static GIOError
+ g_io_error_get_from_g_error (GIOStatus  status,
+@@ -642,7 +647,7 @@ guint
+ g_io_add_watch_full (GIOChannel    *channel,
+ 		     gint           priority,
+ 		     GIOCondition   condition,
+-		     GIOFunc        func,
++		     GSourceFunc    func,
+ 		     gpointer       user_data,
+ 		     GDestroyNotify notify)
+ {
+@@ -655,7 +660,7 @@ g_io_add_watch_full (GIOChannel    *channel,
+ 
+   if (priority != G_PRIORITY_DEFAULT)
+     g_source_set_priority (source, priority);
+-  g_source_set_callback (source, (GSourceFunc)func, user_data, notify);
++  g_source_set_callback (source, func, user_data, notify);
+ 
+   id = g_source_attach (source, NULL);
+   g_source_unref (source);
+@@ -663,6 +668,7 @@ g_io_add_watch_full (GIOChannel    *channel,
+   return id;
+ }
+ 
++#ifndef __EMSCRIPTEN__
+ /**
+  * g_io_add_watch:
+  * @channel: a #GIOChannel
+@@ -709,6 +715,7 @@ g_io_add_watch (GIOChannel   *channel,
+ {
+   return g_io_add_watch_full (channel, G_PRIORITY_DEFAULT, condition, func, user_data, NULL);
+ }
++#endif /* !__EMSCRIPTEN__ */
+ 
+ /**
+  * g_io_channel_get_buffer_condition:
+diff --git a/glib/giochannel.h b/glib/giochannel.h
+index 913019c..9593f2e 100644
+--- a/glib/giochannel.h
++++ b/glib/giochannel.h
+@@ -164,6 +164,7 @@ GLIB_AVAILABLE_IN_ALL
+ GIOChannel *g_io_channel_ref    (GIOChannel    *channel);
+ GLIB_AVAILABLE_IN_ALL
+ void        g_io_channel_unref  (GIOChannel    *channel);
++void        g_io_channel_unref_adapter  (gpointer channel);
+ 
+ GLIB_DEPRECATED_FOR(g_io_channel_read_chars)
+ GIOError    g_io_channel_read   (GIOChannel    *channel,
+@@ -193,7 +194,7 @@ GLIB_AVAILABLE_IN_ALL
+ guint     g_io_add_watch_full   (GIOChannel      *channel,
+ 				 gint             priority,
+ 				 GIOCondition     condition,
+-				 GIOFunc          func,
++				 GSourceFunc      func,
+ 				 gpointer         user_data,
+ 				 GDestroyNotify   notify);
+ GLIB_AVAILABLE_IN_ALL
+diff --git a/glib/giounix.c b/glib/giounix.c
+index 9d9492b..d2ebc39 100644
+--- a/glib/giounix.c
++++ b/glib/giounix.c
+@@ -158,20 +158,22 @@ g_io_unix_dispatch (GSource     *source,
+ 		    gpointer     user_data)
+ 
+ {
+-  GIOFunc func = (GIOFunc)callback;
+-  GIOUnixWatch *watch = (GIOUnixWatch *)source;
+-  GIOCondition buffer_condition = g_io_channel_get_buffer_condition (watch->channel);
+-
+-  if (!func)
+-    {
+-      g_warning ("IO watch dispatched without callback. "
+-		 "You must call g_source_connect().");
+-      return FALSE;
+-    }
+-  
+-  return (*func) (watch->channel,
+-		  (watch->pollfd.revents | buffer_condition) & watch->condition,
+-		  user_data);
++  fprintf(stderr, "%s (%d): I commented this out - ARL\n", __FUNCTION__, __LINE__);
++  return FALSE;
++  // GIOFunc func = (GIOFunc)callback;
++  // GIOUnixWatch *watch = (GIOUnixWatch *)source;
++  // GIOCondition buffer_condition = g_io_channel_get_buffer_condition (watch->channel);
++  //
++  // if (!func)
++  //   {
++  //     g_warning ("IO watch dispatched without callback. "
++		//  "You must call g_source_connect().");
++  //     return FALSE;
++  //   }
++  // 
++  // return (*func) (watch->channel,
++		//   (watch->pollfd.revents | buffer_condition) & watch->condition,
++		//   user_data);
+ }
+ 
+ static void 
+diff --git a/glib/gkeyfile.c b/glib/gkeyfile.c
+index 9a4821b..613d09f 100644
+--- a/glib/gkeyfile.c
++++ b/glib/gkeyfile.c
+@@ -584,6 +584,7 @@ static gboolean              g_key_file_is_group_name          (const gchar *nam
+ static gboolean              g_key_file_is_key_name            (const gchar *name,
+                                                                 gsize        len);
+ static void                  g_key_file_key_value_pair_free    (GKeyFileKeyValuePair   *pair);
++static void                  g_key_file_key_value_pair_free_adapter (gpointer                pair);
+ static gboolean              g_key_file_line_is_comment        (const gchar            *line);
+ static gboolean              g_key_file_line_is_group          (const gchar            *line);
+ static gboolean              g_key_file_line_is_key_value_pair (const gchar            *line);
+@@ -1230,6 +1231,11 @@ g_key_file_unref (GKeyFile *key_file)
+       g_slice_free (GKeyFile, key_file);
+     }
+ }
++void
++g_key_file_unref_adapter (gpointer key_file)
++{
++  g_key_file_unref ((GKeyFile*) key_file);
++}
+ 
+ /* If G_KEY_FILE_KEEP_TRANSLATIONS is not set, only returns
+  * true for locales that match those in g_get_language_names().
+@@ -3410,7 +3416,7 @@ g_key_file_set_top_comment (GKeyFile     *key_file,
+   /* Note all keys must be comments at the top of
+    * the file, so we can just free it all.
+    */
+-  g_list_free_full (group->key_value_pairs, (GDestroyNotify) g_key_file_key_value_pair_free);
++  g_list_free_full (group->key_value_pairs, g_key_file_key_value_pair_free_adapter);
+   group->key_value_pairs = NULL;
+ 
+   if (comment == NULL)
+@@ -3855,17 +3861,6 @@ g_key_file_add_group (GKeyFile    *key_file,
+   g_hash_table_insert (key_file->group_hash, (gpointer)group->name, group);
+ }
+ 
+-static void
+-g_key_file_key_value_pair_free (GKeyFileKeyValuePair *pair)
+-{
+-  if (pair != NULL)
+-    {
+-      g_free (pair->key);
+-      g_free (pair->value);
+-      g_slice_free (GKeyFileKeyValuePair, pair);
+-    }
+-}
+-
+ /* Be careful not to call this function on a node with data in the
+  * lookup map without removing it from the lookup map, first.
+  *
+@@ -4231,6 +4226,22 @@ g_key_file_is_key_name (const gchar *name,
+   return TRUE;
+ }
+ 
++static void
++g_key_file_key_value_pair_free (GKeyFileKeyValuePair *pair)
++{
++  if (pair != NULL)
++    {
++      g_free (pair->key);
++      g_free (pair->value);
++      g_slice_free (GKeyFileKeyValuePair, pair);
++    }
++}
++static void
++g_key_file_key_value_pair_free_adapter (gpointer pair)
++{
++  g_key_file_key_value_pair_free ((GKeyFileKeyValuePair*) pair);
++}
++
+ /* A group in a key file is made up of a starting '[' followed by one
+  * or more letters making up the group name followed by ']'.
+  */
+diff --git a/glib/gkeyfile.h b/glib/gkeyfile.h
+index 9d026d6..0e38072 100644
+--- a/glib/gkeyfile.h
++++ b/glib/gkeyfile.h
+@@ -62,6 +62,7 @@ GLIB_AVAILABLE_IN_ALL
+ GKeyFile *g_key_file_ref                    (GKeyFile             *key_file);
+ GLIB_AVAILABLE_IN_ALL
+ void      g_key_file_unref                  (GKeyFile             *key_file);
++void      g_key_file_unref_adapter          (gpointer              key_file);
+ GLIB_AVAILABLE_IN_ALL
+ void      g_key_file_free                   (GKeyFile             *key_file);
+ GLIB_AVAILABLE_IN_ALL
+diff --git a/glib/glib-autocleanups.h b/glib/glib-autocleanups.h
+index 7393efe..014e9bb 100644
+--- a/glib/glib-autocleanups.h
++++ b/glib/glib-autocleanups.h
+@@ -36,6 +36,11 @@ g_autoptr_cleanup_gstring_free (GString *string)
+   if (string)
+     g_string_free (string, TRUE);
+ }
++static inline void
++g_autoptr_cleanup_gstring_free_adapter (gpointer string)
++{
++  g_autoptr_cleanup_gstring_free ((GString*) string);
++}
+ 
+ /* Ignore deprecations in case we refer to a type which was added in a more
+  * recent GLib version than the user’s #GLIB_VERSION_MAX_ALLOWED definition. */
+@@ -45,67 +50,68 @@ G_GNUC_BEGIN_IGNORE_DEPRECATIONS
+  * glib/tests/autoptr.c
+  */
+ 
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GList, g_list_free)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GThread, g_thread_unref)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GBytes, g_bytes_unref)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GHashTable, g_hash_table_unref)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GSList, g_slist_free)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GList, g_list_free_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GThread, g_thread_unref_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GBytes, g_bytes_unref_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GHashTable, g_hash_table_unref_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GSList, g_slist_free_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GArray, g_array_unref_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GPtrArray, g_ptr_array_unref_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GByteArray, g_byte_array_unref_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GMainContext, g_main_context_unref_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GMainContextPusher, g_main_context_pusher_free_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GMainLoop, g_main_loop_unref_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GSource, g_source_unref_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GString, g_autoptr_cleanup_gstring_free_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GQueue, g_queue_free_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GDateTime, g_date_time_unref_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GDate, g_date_free_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GIOChannel, g_io_channel_unref_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GDir, g_dir_close_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GBookmarkFile, g_bookmark_file_free_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GChecksum, g_checksum_free_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GError, g_error_free_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GKeyFile, g_key_file_unref_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GMappedFile, g_mapped_file_unref_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GMarkupParseContext, g_markup_parse_context_unref_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GTimer, g_timer_destroy_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GTimeZone, g_time_zone_unref_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GTree, g_tree_unref_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GVariant, g_variant_unref_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GVariantBuilder, g_variant_builder_unref_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GVariantIter, g_variant_iter_free_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GVariantDict, g_variant_dict_unref_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GVariantType, g_variant_type_free_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GMutexLocker, g_mutex_locker_free_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GRecMutexLocker, g_rec_mutex_locker_free_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GRWLockWriterLocker, g_rw_lock_writer_locker_free_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GRWLockReaderLocker, g_rw_lock_reader_locker_free_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GPatternSpec, g_pattern_spec_free_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GScanner, g_scanner_destroy_adapter)
++G_DEFINE_AUTO_CLEANUP_FREE_FUNC(GStrv, g_strfreev, NULL)
++
++G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(GVariantBuilder, g_variant_builder_clear)
++G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(GVariantDict, g_variant_dict_clear)
++G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(GMutex, g_mutex_clear)
++G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(GQueue, g_queue_clear)
++G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(GCond, g_cond_clear)
+ 
+ #ifndef __EMSCRIPTEN__
+ 
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GRefString, g_ref_string_release_adapter)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GStrvBuilder, g_strv_builder_unref)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GStringChunk, g_string_chunk_free)
+ G_DEFINE_AUTOPTR_CLEANUP_FUNC(GAsyncQueue, g_async_queue_unref)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GBookmarkFile, g_bookmark_file_free)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GChecksum, g_checksum_free)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GDateTime, g_date_time_unref)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GDate, g_date_free)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GDir, g_dir_close)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GError, g_error_free)
+ G_DEFINE_AUTOPTR_CLEANUP_FUNC(GHmac, g_hmac_unref)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GIOChannel, g_io_channel_unref)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GKeyFile, g_key_file_unref)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GArray, g_array_unref)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GPtrArray, g_ptr_array_unref)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GByteArray, g_byte_array_unref)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GMainContext, g_main_context_unref)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GMainContextPusher, g_main_context_pusher_free)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GMainLoop, g_main_loop_unref)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GSource, g_source_unref)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GMappedFile, g_mapped_file_unref)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GMarkupParseContext, g_markup_parse_context_unref)
+ G_DEFINE_AUTOPTR_CLEANUP_FUNC(GNode, g_node_destroy)
+ G_DEFINE_AUTOPTR_CLEANUP_FUNC(GOptionContext, g_option_context_free)
+ G_DEFINE_AUTOPTR_CLEANUP_FUNC(GOptionGroup, g_option_group_unref)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GPatternSpec, g_pattern_spec_free)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GQueue, g_queue_free)
+-G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(GQueue, g_queue_clear)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GRand, g_rand_free)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GScanner, g_scanner_destroy)
+ G_DEFINE_AUTOPTR_CLEANUP_FUNC(GSequence, g_sequence_free)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GString, g_autoptr_cleanup_gstring_free)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GStringChunk, g_string_chunk_free)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GStrvBuilder, g_strv_builder_unref)
+-G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(GMutex, g_mutex_clear)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GMutexLocker, g_mutex_locker_free)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GRecMutexLocker, g_rec_mutex_locker_free)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GRWLockWriterLocker, g_rw_lock_writer_locker_free)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GRWLockReaderLocker, g_rw_lock_reader_locker_free)
+-G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(GCond, g_cond_clear)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GTimer, g_timer_destroy)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GTimeZone, g_time_zone_unref)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GTree, g_tree_unref)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GVariant, g_variant_unref)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GVariantBuilder, g_variant_builder_unref)
+-G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(GVariantBuilder, g_variant_builder_clear)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GVariantIter, g_variant_iter_free)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GVariantDict, g_variant_dict_unref)
+-G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(GVariantDict, g_variant_dict_clear)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GVariantType, g_variant_type_free)
+-G_DEFINE_AUTO_CLEANUP_FREE_FUNC(GStrv, g_strfreev, NULL)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GRefString, g_ref_string_release)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GRand, g_rand_free)
+ G_DEFINE_AUTOPTR_CLEANUP_FUNC(GUri, g_uri_unref)
+ G_DEFINE_AUTOPTR_CLEANUP_FUNC (GPathBuf, g_path_buf_free)
+ G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC (GPathBuf, g_path_buf_clear)
+ 
+-#endif /* __EMSCRIPTEN__ */
++#endif /* !__EMSCRIPTEN__ */
+ 
+ G_GNUC_END_IGNORE_DEPRECATIONS
+diff --git a/glib/glib-unix.c b/glib/glib-unix.c
+index d5bf896..8967e08 100644
+--- a/glib/glib-unix.c
++++ b/glib/glib-unix.c
+@@ -29,6 +29,7 @@
+ #include "gmessages.h"
+ 
+ #include <string.h>
++#include <stdio.h>
+ #include <sys/types.h>
+ #include <pwd.h>
+ 
+@@ -272,17 +273,19 @@ g_unix_fd_source_dispatch (GSource     *source,
+                            GSourceFunc  callback,
+                            gpointer     user_data)
+ {
+-  GUnixFDSource *fd_source = (GUnixFDSource *) source;
+-  GUnixFDSourceFunc func = (GUnixFDSourceFunc) callback;
+-
+-  if (!callback)
+-    {
+-      g_warning ("GUnixFDSource dispatched without callback. "
+-                 "You must call g_source_set_callback().");
+-      return FALSE;
+-    }
+-
+-  return (* func) (fd_source->fd, g_source_query_unix_fd (source, fd_source->tag), user_data);
++  fprintf(stderr, "%s (%d): I commented this out - ARL\n", __FUNCTION__, __LINE__);
++  return FALSE;
++  // GUnixFDSource *fd_source = (GUnixFDSource *) source;
++  // GUnixFDSourceFunc func = (GUnixFDSourceFunc) callback;
++  //
++  // if (!callback)
++  //   {
++  //     g_warning ("GUnixFDSource dispatched without callback. "
++  //                "You must call g_source_set_callback().");
++  //     return FALSE;
++  //   }
++  //
++  // return (* func) (fd_source->fd, g_source_query_unix_fd (source, fd_source->tag), user_data);
+ }
+ 
+ GSourceFuncs g_unix_fd_source_funcs = {
+@@ -347,21 +350,23 @@ g_unix_fd_add_full (gint              priority,
+                     gpointer          user_data,
+                     GDestroyNotify    notify)
+ {
+-  GSource *source;
+-  guint id;
+-
+-  g_return_val_if_fail (function != NULL, 0);
+-
+-  source = g_unix_fd_source_new (fd, condition);
+-
+-  if (priority != G_PRIORITY_DEFAULT)
+-    g_source_set_priority (source, priority);
+-
+-  g_source_set_callback (source, (GSourceFunc) function, user_data, notify);
+-  id = g_source_attach (source, NULL);
+-  g_source_unref (source);
+-
+-  return id;
++  fprintf(stderr, "%s (%d): I commented this out - ARL\n", __FUNCTION__, __LINE__);
++  return 0;
++  // GSource *source;
++  // guint id;
++  //
++  // g_return_val_if_fail (function != NULL, 0);
++  //
++  // source = g_unix_fd_source_new (fd, condition);
++  //
++  // if (priority != G_PRIORITY_DEFAULT)
++  //   g_source_set_priority (source, priority);
++  //
++  // g_source_set_callback (source, (GSourceFunc) function, user_data, notify);
++  // id = g_source_attach (source, NULL);
++  // g_source_unref (source);
++  //
++  // return id;
+ }
+ 
+ /**
+diff --git a/glib/glist.c b/glib/glist.c
+index 754a3ec..8b9d046 100644
+--- a/glib/glist.c
++++ b/glib/glist.c
+@@ -195,6 +195,11 @@ g_list_free (GList *list)
+ {
+   g_slice_free_chain (GList, list, next);
+ }
++void
++g_list_free_adapter (gpointer list)
++{
++  g_list_free ((GList*) list);
++}
+ 
+ /**
+  * g_list_free_1:
+@@ -243,7 +248,12 @@ void
+ g_list_free_full (GList          *list,
+                   GDestroyNotify  free_func)
+ {
+-  g_list_foreach (list, (GFunc) free_func, NULL);
++  while (list)
++    {
++      GList *next = list->next;
++      (*free_func) (list->data);
++      list = next;
++    }
+   g_list_free (list);
+ }
+ 
+@@ -1097,7 +1107,7 @@ g_list_foreach (GList    *list,
+ static GList*
+ g_list_insert_sorted_real (GList    *list,
+                            gpointer  data,
+-                           GFunc     func,
++                           GCompareDataFunc     func,
+                            gpointer  user_data)
+ {
+   GList *tmp_list = list;
+@@ -1113,13 +1123,13 @@ g_list_insert_sorted_real (GList    *list,
+       return new_list;
+     }
+   
+-  cmp = ((GCompareDataFunc) func) (data, tmp_list->data, user_data);
++  cmp = (func) (data, tmp_list->data, user_data);
+ 
+   while ((tmp_list->next) && (cmp > 0))
+     {
+       tmp_list = tmp_list->next;
+ 
+-      cmp = ((GCompareDataFunc) func) (data, tmp_list->data, user_data);
++      cmp = (func) (data, tmp_list->data, user_data);
+     }
+ 
+   new_list = _g_list_alloc0 ();
+@@ -1168,9 +1178,9 @@ g_list_insert_sorted_real (GList    *list,
+ GList *
+ g_list_insert_sorted (GList        *list,
+                       gpointer      data,
+-                      GCompareFunc  func)
++                      GCompareDataFunc  func)
+ {
+-  return g_list_insert_sorted_real (list, data, (GFunc) func, NULL);
++  return g_list_insert_sorted_real (list, data, func, NULL);
+ }
+ 
+ /**
+@@ -1201,13 +1211,13 @@ g_list_insert_sorted_with_data (GList            *list,
+                                 GCompareDataFunc  func,
+                                 gpointer          user_data)
+ {
+-  return g_list_insert_sorted_real (list, data, (GFunc) func, user_data);
++  return g_list_insert_sorted_real (list, data, func, user_data);
+ }
+ 
+ static GList *
+ g_list_sort_merge (GList     *l1, 
+                    GList     *l2,
+-                   GFunc     compare_func,
++                   GCompareDataFunc     compare_func,
+                    gpointer  user_data)
+ {
+   GList list, *l, *lprev;
+@@ -1218,7 +1228,7 @@ g_list_sort_merge (GList     *l1,
+ 
+   while (l1 && l2)
+     {
+-      cmp = ((GCompareDataFunc) compare_func) (l1->data, l2->data, user_data);
++      cmp = (compare_func) (l1->data, l2->data, user_data);
+ 
+       if (cmp <= 0)
+         {
+@@ -1242,7 +1252,7 @@ g_list_sort_merge (GList     *l1,
+ 
+ static GList * 
+ g_list_sort_real (GList    *list,
+-                  GFunc     compare_func,
++                  GCompareDataFunc     compare_func,
+                   gpointer  user_data)
+ {
+   GList *l1, *l2;
+@@ -1299,9 +1309,9 @@ g_list_sort_real (GList    *list,
+  */
+ GList *
+ g_list_sort (GList        *list,
+-             GCompareFunc  compare_func)
++             GCompareDataFunc  compare_func)
+ {
+-  return g_list_sort_real (list, (GFunc) compare_func, NULL);
++  return g_list_sort_real (list, compare_func, NULL);
+ }
+ 
+ /**
+@@ -1334,7 +1344,7 @@ g_list_sort_with_data (GList            *list,
+                        GCompareDataFunc  compare_func,
+                        gpointer          user_data)
+ {
+-  return g_list_sort_real (list, (GFunc) compare_func, user_data);
++  return g_list_sort_real (list, compare_func, user_data);
+ }
+ 
+ /**
+diff --git a/glib/glist.h b/glib/glist.h
+index 2a453b7..f6f9bd7 100644
+--- a/glib/glist.h
++++ b/glib/glist.h
+@@ -51,6 +51,7 @@ GLIB_AVAILABLE_IN_ALL
+ GList*   g_list_alloc                   (void) G_GNUC_WARN_UNUSED_RESULT;
+ GLIB_AVAILABLE_IN_ALL
+ void     g_list_free                    (GList            *list);
++void     g_list_free_adapter            (gpointer          list);
+ GLIB_AVAILABLE_IN_ALL
+ void     g_list_free_1                  (GList            *list);
+ #define  g_list_free1                   g_list_free_1
+@@ -70,7 +71,7 @@ GList*   g_list_insert                  (GList            *list,
+ GLIB_AVAILABLE_IN_ALL
+ GList*   g_list_insert_sorted           (GList            *list,
+ 					 gpointer          data,
+-					 GCompareFunc      func) G_GNUC_WARN_UNUSED_RESULT;
++					 GCompareDataFunc      func) G_GNUC_WARN_UNUSED_RESULT;
+ GLIB_AVAILABLE_IN_ALL
+ GList*   g_list_insert_sorted_with_data (GList            *list,
+ 					 gpointer          data,
+@@ -140,7 +141,7 @@ void     g_list_foreach                 (GList            *list,
+ 					 gpointer          user_data);
+ GLIB_AVAILABLE_IN_ALL
+ GList*   g_list_sort                    (GList            *list,
+-					 GCompareFunc      compare_func) G_GNUC_WARN_UNUSED_RESULT;
++					 GCompareDataFunc      compare_func) G_GNUC_WARN_UNUSED_RESULT;
+ GLIB_AVAILABLE_IN_ALL
+ GList*   g_list_sort_with_data          (GList            *list,
+ 					 GCompareDataFunc  compare_func,
+diff --git a/glib/gmacros.h b/glib/gmacros.h
+index a7ed775..9059722 100644
+--- a/glib/gmacros.h
++++ b/glib/gmacros.h
+@@ -1351,16 +1351,16 @@
+   typedef GSList *_GLIB_AUTOPTR_SLIST_TYPENAME(TypeName);                                                       \
+   typedef GQueue *_GLIB_AUTOPTR_QUEUE_TYPENAME(TypeName);                                                       \
+   G_GNUC_BEGIN_IGNORE_DEPRECATIONS                                                                              \
+-  static G_GNUC_UNUSED inline void _GLIB_AUTOPTR_CLEAR_FUNC_NAME(TypeName) (TypeName *_ptr)                     \
+-    { if (_ptr) (cleanup) ((ParentName *) _ptr); }                                                              \
++  static G_GNUC_UNUSED inline void _GLIB_AUTOPTR_CLEAR_FUNC_NAME(TypeName) (gpointer _ptr) \
++    { if (_ptr) (cleanup) ((TypeName*) _ptr); }                                                                 \
+   static G_GNUC_UNUSED inline void _GLIB_AUTOPTR_FUNC_NAME(TypeName) (TypeName **_ptr)                          \
+-    { _GLIB_AUTOPTR_CLEAR_FUNC_NAME(TypeName) (*_ptr); }                                                        \
++    { _GLIB_AUTOPTR_CLEAR_FUNC_NAME(TypeName) ((TypeName *) *_ptr); }                                                        \
+   static G_GNUC_UNUSED inline void _GLIB_AUTOPTR_LIST_FUNC_NAME(TypeName) (GList **_l)                          \
+-    { g_list_free_full (*_l, (GDestroyNotify) (void(*)(void)) cleanup); }                                       \
++    { g_list_free_full (*_l, cleanup); }                                       \
+   static G_GNUC_UNUSED inline void _GLIB_AUTOPTR_SLIST_FUNC_NAME(TypeName) (GSList **_l)                        \
+-    { g_slist_free_full (*_l, (GDestroyNotify) (void(*)(void)) cleanup); }                                      \
++    { g_slist_free_full (*_l, cleanup); }                                      \
+   static G_GNUC_UNUSED inline void _GLIB_AUTOPTR_QUEUE_FUNC_NAME(TypeName) (GQueue **_q)                        \
+-    { if (*_q) g_queue_free_full (*_q, (GDestroyNotify) (void(*)(void)) cleanup); }                             \
++    { if (*_q) g_queue_free_full (*_q, cleanup); }                             \
+   G_GNUC_END_IGNORE_DEPRECATIONS
+ #define _GLIB_DEFINE_AUTOPTR_CHAINUP(ModuleObjName, ParentName) \
+   _GLIB_DEFINE_AUTOPTR_CLEANUP_FUNCS(ModuleObjName, ParentName, _GLIB_AUTOPTR_CLEAR_FUNC_NAME(ParentName))
+diff --git a/glib/gmain.c b/glib/gmain.c
+index d28f89e..5c27b69 100644
+--- a/glib/gmain.c
++++ b/glib/gmain.c
+@@ -34,6 +34,7 @@
+ #include "config.h"
+ #include "glibconfig.h"
+ #include "glib_trace.h"
++#include <stdio.h>
+ 
+ /* Uncomment the next line (and the corresponding line in gpoll.c) to
+  * enable debugging printouts if the environment variable
+@@ -68,6 +69,7 @@
+ #endif /* G_OS_UNIX */
+ #include <errno.h>
+ #include <string.h>
++#include <stdio.h>
+ 
+ #ifdef HAVE_PIDFD
+ #include <sys/syscall.h>
+@@ -471,8 +473,8 @@ static gboolean g_child_watch_prepare  (GSource     *source,
+ 				        gint        *timeout);
+ static gboolean g_child_watch_check    (GSource     *source);
+ static gboolean g_child_watch_dispatch (GSource     *source,
+-					GSourceFunc  callback,
+-					gpointer     user_data);
++ 					GSourceFunc  callback,
++ 					gpointer     user_data);
+ static void     g_child_watch_finalize (GSource     *source);
+ #if defined(G_OS_UNIX) && !defined(G_PLATFORM_WASM)
+ static void g_unix_signal_handler (int signum);
+@@ -687,6 +689,11 @@ g_main_context_unref (GMainContext *context)
+     }
+   g_slist_free (remaining_sources);
+ }
++void
++g_main_context_unref_adapter (gpointer context)
++{
++  g_main_context_unref ((GMainContext*) context);
++}
+ 
+ /* Helper function used by mainloop/overflow test.
+  */
+@@ -2442,6 +2449,11 @@ g_source_unref (GSource *source)
+ 
+   g_source_unref_internal (source, source->context, FALSE);
+ }
++void
++g_source_unref_adapter (gpointer source)
++{
++  g_source_unref ((GSource*) source);
++}
+ 
+ /**
+  * g_main_context_find_source_by_id:
+@@ -4417,6 +4429,11 @@ g_main_loop_unref (GMainLoop *loop)
+   g_main_context_unref (loop->context);
+   g_free (loop);
+ }
++void
++g_main_loop_unref_adapter (gpointer   loop)
++{
++  g_main_loop_unref ((GMainLoop*) loop);
++}
+ 
+ /**
+  * g_main_loop_run:
+@@ -5033,33 +5050,35 @@ g_timeout_dispatch (GSource     *source,
+                     GSourceFunc  callback,
+                     gpointer     user_data)
+ {
+-  GTimeoutSource *timeout_source = (GTimeoutSource *)source;
+-  gboolean again;
+-
+-  if (!callback)
+-    {
+-      g_warning ("Timeout source dispatched without callback. "
+-                 "You must call g_source_set_callback().");
+-      return FALSE;
+-    }
+-
+-  if (timeout_source->one_shot)
+-    {
+-      GSourceOnceFunc once_callback = (GSourceOnceFunc) callback;
+-      once_callback (user_data);
+-      again = G_SOURCE_REMOVE;
+-    }
+-  else
+-    {
+-      again = callback (user_data);
+-    }
+-
+-  TRACE (GLIB_TIMEOUT_DISPATCH (source, source->context, callback, user_data, again));
+-
+-  if (again)
+-    g_timeout_set_expiration (timeout_source, g_source_get_time (source));
+-
+-  return again;
++  fprintf(stderr, "%s (%d): I commented this out - ARL\n", __FUNCTION__, __LINE__);
++  return FALSE;
++  // GTimeoutSource *timeout_source = (GTimeoutSource *)source;
++  // gboolean again;
++  //
++  // if (!callback)
++  //   {
++  //     g_warning ("Timeout source dispatched without callback. "
++  //                "You must call g_source_set_callback().");
++  //     return FALSE;
++  //   }
++  //
++  // if (timeout_source->one_shot)
++  //   {
++  //     GSourceOnceFunc once_callback = callback;
++  //     once_callback (user_data);
++  //     again = G_SOURCE_REMOVE;
++  //   }
++  // else
++  //   {
++  //     again = callback (user_data);
++  //   }
++  //
++  // TRACE (GLIB_TIMEOUT_DISPATCH (source, source->context, callback, user_data, again));
++  //
++  // if (again)
++  //   g_timeout_set_expiration (timeout_source, g_source_get_time (source));
++  //
++  // return again;
+ }
+ 
+ static GSource *
+@@ -5135,24 +5154,26 @@ timeout_add_full (gint           priority,
+                   gpointer       data,
+                   GDestroyNotify notify)
+ {
+-  GSource *source;
+-  guint id;
+-
+-  g_return_val_if_fail (function != NULL, 0);
+-
+-  source = timeout_source_new (interval, seconds, one_shot);
+-
+-  if (priority != G_PRIORITY_DEFAULT)
+-    g_source_set_priority (source, priority);
+-
+-  g_source_set_callback (source, function, data, notify);
+-  id = g_source_attach (source, NULL);
+-
+-  TRACE (GLIB_TIMEOUT_ADD (source, g_main_context_default (), id, priority, interval, function, data));
+-
+-  g_source_unref (source);
+-
+-  return id;
++  fprintf(stderr, "%s (%d): I commented this out - ARL\n", __FUNCTION__, __LINE__);
++  return 0;
++  // GSource *source;
++  // guint id;
++  //
++  // g_return_val_if_fail (function != NULL, 0);
++  //
++  // source = timeout_source_new (interval, seconds, one_shot);
++  //
++  // if (priority != G_PRIORITY_DEFAULT)
++  //   g_source_set_priority (source, priority);
++  //
++  // g_source_set_callback (source, function, data, notify);
++  // id = g_source_attach (source, NULL);
++  //
++  // TRACE (GLIB_TIMEOUT_ADD (source, g_main_context_default (), id, priority, interval, function, data));
++  //
++  // g_source_unref (source);
++  //
++  // return id;
+ }
+ 
+ /**
+@@ -5277,7 +5298,9 @@ g_timeout_add_once (guint32         interval,
+                     GSourceOnceFunc function,
+                     gpointer        data)
+ {
+-  return timeout_add_full (G_PRIORITY_DEFAULT, interval, FALSE, TRUE, (GSourceFunc) function, data, NULL);
++  fprintf(stderr, "%s (%d): I commented this out - ARL\n", __FUNCTION__, __LINE__);
++  return 0;
++  //return timeout_add_full (G_PRIORITY_DEFAULT, interval, FALSE, TRUE, function, data, NULL);
+ }
+ 
+ /**
+@@ -5883,19 +5906,20 @@ g_child_watch_dispatch (GSource    *source,
+ 			GSourceFunc callback,
+ 			gpointer    user_data)
+ {
+-  GChildWatchSource *child_watch_source;
+-  GChildWatchFunc child_watch_callback = (GChildWatchFunc) callback;
+-
+-  child_watch_source = (GChildWatchSource *) source;
+-
+-  if (!callback)
+-    {
+-      g_warning ("Child watch source dispatched without callback. "
+-		 "You must call g_source_set_callback().");
+-      return FALSE;
+-    }
+-
+-  (child_watch_callback) (child_watch_source->pid, child_watch_source->child_status, user_data);
++  fprintf(stderr, "%s (%d): I commented this out - ARL\n", __FUNCTION__, __LINE__);
++  // GChildWatchSource *child_watch_source;
++  // GChildWatchFunc child_watch_callback = (GChildWatchFunc) callback;
++  //
++  // child_watch_source = (GChildWatchSource *) source;
++  //
++  // if (!callback)
++  //   {
++  //     g_warning ("Child watch source dispatched without callback. "
++		//  "You must call g_source_set_callback().");
++  //     return FALSE;
++  //   }
++  //
++  // (child_watch_callback) (child_watch_source->pid, child_watch_source->child_status, user_data);
+ 
+   /* We never keep a child watch source around as the child is gone */
+   return FALSE;
+@@ -6079,24 +6103,26 @@ g_child_watch_add_full (gint            priority,
+ 			gpointer        data,
+ 			GDestroyNotify  notify)
+ {
+-  GSource *source;
+-  guint id;
+-  
+-  g_return_val_if_fail (function != NULL, 0);
+-#ifndef G_OS_WIN32
+-  g_return_val_if_fail (pid > 0, 0);
+-#endif
+-
+-  source = g_child_watch_source_new (pid);
+-
+-  if (priority != G_PRIORITY_DEFAULT)
+-    g_source_set_priority (source, priority);
+-
+-  g_source_set_callback (source, (GSourceFunc) function, data, notify);
+-  id = g_source_attach (source, NULL);
+-  g_source_unref (source);
+-
+-  return id;
++  fprintf(stderr, "%s (%d): I commented this out - ARL\n", __FUNCTION__, __LINE__);
++  return 0;
++//   GSource *source;
++//   guint id;
++//   
++//   g_return_val_if_fail (function != NULL, 0);
++// #ifndef G_OS_WIN32
++//   g_return_val_if_fail (pid > 0, 0);
++// #endif
++//
++//   source = g_child_watch_source_new (pid);
++//
++//   if (priority != G_PRIORITY_DEFAULT)
++//     g_source_set_priority (source, priority);
++//
++//   g_source_set_callback (source, function, data, notify);
++//   id = g_source_attach (source, NULL);
++//   g_source_unref (source);
++//
++//   return id;
+ }
+ 
+ /**
+@@ -6163,30 +6189,32 @@ g_idle_dispatch (GSource    *source,
+ 		 GSourceFunc callback,
+ 		 gpointer    user_data)
+ {
+-  GIdleSource *idle_source = (GIdleSource *)source;
+-  gboolean again;
+-
+-  if (!callback)
+-    {
+-      g_warning ("Idle source dispatched without callback. "
+-		 "You must call g_source_set_callback().");
+-      return FALSE;
+-    }
+-
+-  if (idle_source->one_shot)
+-    {
+-      GSourceOnceFunc once_callback = (GSourceOnceFunc) callback;
+-      once_callback (user_data);
+-      again = G_SOURCE_REMOVE;
+-    }
+-  else
+-    {
+-      again = callback (user_data);
+-    }
+-
+-  TRACE (GLIB_IDLE_DISPATCH (source, source->context, callback, user_data, again));
+-
+-  return again;
++  fprintf(stderr, "%s (%d): I commented this out - ARL\n", __FUNCTION__, __LINE__);
++  return FALSE;
++  // GIdleSource *idle_source = (GIdleSource *)source;
++  // gboolean again;
++  //
++  // if (!callback)
++  //   {
++  //     g_warning ("Idle source dispatched without callback. "
++		//  "You must call g_source_set_callback().");
++  //     return FALSE;
++  //   }
++  //
++  // if (idle_source->one_shot)
++  //   {
++  //     GSourceOnceFunc once_callback = callback;
++  //     once_callback (user_data);
++  //     again = G_SOURCE_REMOVE;
++  //   }
++  // else
++  //   {
++  //     again = callback (user_data);
++  //   }
++  //
++  // TRACE (GLIB_IDLE_DISPATCH (source, source->context, callback, user_data, again));
++  //
++  // return again;
+ }
+ 
+ static GSource *
+@@ -6339,7 +6367,9 @@ guint
+ g_idle_add_once (GSourceOnceFunc function,
+                  gpointer        data)
+ {
+-  return idle_add_full (G_PRIORITY_DEFAULT_IDLE, TRUE, (GSourceFunc) function, data, NULL);
++  fprintf(stderr, "%s (%d): I commented this out - ARL\n", __FUNCTION__, __LINE__);
++  return 0;
++  //return idle_add_full (G_PRIORITY_DEFAULT_IDLE, TRUE, function, data, NULL);
+ }
+ 
+ /**
+@@ -6499,6 +6529,7 @@ g_get_worker_context (void)
+       sigfillset (&all);
+       pthread_sigmask (SIG_SETMASK, &all, &prev_mask);
+ #endif
++      fprintf(stderr, "%s (%d): Kicking off the main thread - ARL\n", __FUNCTION__, __LINE__);
+       glib_worker_context = g_main_context_new ();
+       g_thread_new ("gmain", glib_worker_main, NULL);
+ #if defined(G_OS_UNIX) && !defined(G_PLATFORM_WASM)
+diff --git a/glib/gmain.h b/glib/gmain.h
+index ae3cc3e..2f83214 100644
+--- a/glib/gmain.h
++++ b/glib/gmain.h
+@@ -402,6 +402,7 @@ GLIB_AVAILABLE_IN_ALL
+ GMainContext *g_main_context_ref       (GMainContext *context);
+ GLIB_AVAILABLE_IN_ALL
+ void          g_main_context_unref     (GMainContext *context);
++void          g_main_context_unref_adapter (gpointer context);
+ GLIB_AVAILABLE_IN_ALL
+ GMainContext *g_main_context_default   (void);
+ 
+@@ -571,6 +572,11 @@ g_main_context_pusher_free (GMainContextPusher *pusher)
+ {
+   g_main_context_pop_thread_default ((GMainContext *) pusher);
+ }
++static inline void
++g_main_context_pusher_free_adapter (gpointer pusher)
++{
++  g_main_context_pusher_free ((GMainContextPusher*) pusher);
++}
+ G_GNUC_END_IGNORE_DEPRECATIONS
+ 
+ /* GMainLoop: */
+@@ -586,6 +592,7 @@ GLIB_AVAILABLE_IN_ALL
+ GMainLoop *g_main_loop_ref        (GMainLoop    *loop);
+ GLIB_AVAILABLE_IN_ALL
+ void       g_main_loop_unref      (GMainLoop    *loop);
++void       g_main_loop_unref_adapter (gpointer   loop);
+ GLIB_AVAILABLE_IN_ALL
+ gboolean   g_main_loop_is_running (GMainLoop    *loop);
+ GLIB_AVAILABLE_IN_ALL
+@@ -607,6 +614,7 @@ GLIB_AVAILABLE_IN_ALL
+ GSource *g_source_ref             (GSource        *source);
+ GLIB_AVAILABLE_IN_ALL
+ void     g_source_unref           (GSource        *source);
++void     g_source_unref_adapter   (gpointer        source);
+ 
+ GLIB_AVAILABLE_IN_ALL
+ guint    g_source_attach          (GSource        *source,
+diff --git a/glib/gmappedfile.c b/glib/gmappedfile.c
+index 4d7a89e..37dfdf4 100644
+--- a/glib/gmappedfile.c
++++ b/glib/gmappedfile.c
+@@ -408,6 +408,11 @@ g_mapped_file_unref (GMappedFile *file)
+   if (g_atomic_int_dec_and_test (&file->ref_count))
+     g_mapped_file_destroy (file);
+ }
++void
++g_mapped_file_unref_adapter (gpointer file)
++{
++  g_mapped_file_unref ((GMappedFile*) file);
++}
+ 
+ /**
+  * g_mapped_file_get_bytes:
+@@ -429,6 +434,6 @@ g_mapped_file_get_bytes (GMappedFile *file)
+ 
+   return g_bytes_new_with_free_func (file->contents,
+ 				     file->length,
+-				     (GDestroyNotify) g_mapped_file_unref,
++				     g_mapped_file_unref_adapter,
+ 				     g_mapped_file_ref (file));
+ }
+diff --git a/glib/gmappedfile.h b/glib/gmappedfile.h
+index 4f5f698..e76ceb2 100644
+--- a/glib/gmappedfile.h
++++ b/glib/gmappedfile.h
+@@ -51,6 +51,7 @@ GLIB_AVAILABLE_IN_ALL
+ GMappedFile *g_mapped_file_ref          (GMappedFile  *file);
+ GLIB_AVAILABLE_IN_ALL
+ void         g_mapped_file_unref        (GMappedFile  *file);
++void         g_mapped_file_unref_adapter(gpointer     file);
+ 
+ GLIB_DEPRECATED_FOR(g_mapped_file_unref)
+ void         g_mapped_file_free         (GMappedFile  *file);
+diff --git a/glib/gmarkup.c b/glib/gmarkup.c
+index 9422abd..b058264 100644
+--- a/glib/gmarkup.c
++++ b/glib/gmarkup.c
+@@ -310,6 +310,11 @@ g_markup_parse_context_unref (GMarkupParseContext *context)
+   if (g_atomic_int_dec_and_test (&context->ref_count))
+     g_markup_parse_context_free (context);
+ }
++void
++g_markup_parse_context_unref_adapter (gpointer context)
++{
++  g_markup_parse_context_unref ((GMarkupParseContext*) context);
++}
+ 
+ static void
+ string_full_free (gpointer ptr)
+diff --git a/glib/gmarkup.h b/glib/gmarkup.h
+index 5b57813..671b7e3 100644
+--- a/glib/gmarkup.h
++++ b/glib/gmarkup.h
+@@ -196,6 +196,7 @@ GLIB_AVAILABLE_IN_2_36
+ GMarkupParseContext *g_markup_parse_context_ref   (GMarkupParseContext *context);
+ GLIB_AVAILABLE_IN_2_36
+ void                 g_markup_parse_context_unref (GMarkupParseContext *context);
++void                 g_markup_parse_context_unref_adapter (gpointer     context);
+ GLIB_AVAILABLE_IN_ALL
+ void                 g_markup_parse_context_free  (GMarkupParseContext *context);
+ GLIB_AVAILABLE_IN_ALL
+diff --git a/glib/gmessages.c b/glib/gmessages.c
+index 541b081..83855bd 100644
+--- a/glib/gmessages.c
++++ b/glib/gmessages.c
+@@ -1920,7 +1920,7 @@ g_log_variant (const gchar    *log_domain,
+   g_log_structured_array (log_level, (GLogField *) fields_array->data, fields_array->len);
+ 
+   g_array_free (fields_array, TRUE);
+-  g_slist_free_full (values_list, (GDestroyNotify) g_variant_unref);
++  g_slist_free_full (values_list, g_variant_unref_adapter);
+   g_slist_free_full (print_list, g_free);
+ }
+ 
+diff --git a/glib/gpattern.c b/glib/gpattern.c
+index 09bdd5a..b7d106d 100644
+--- a/glib/gpattern.c
++++ b/glib/gpattern.c
+@@ -434,6 +434,11 @@ g_pattern_spec_free (GPatternSpec *pspec)
+   g_free (pspec->pattern);
+   g_free (pspec);
+ }
++void
++g_pattern_spec_free_adapter (gpointer pspec)
++{
++  g_pattern_spec_free ((GPatternSpec*) pspec);
++}
+ 
+ /**
+  * g_pattern_spec_equal:
+diff --git a/glib/gpattern.h b/glib/gpattern.h
+index c8ceb84..179f874 100644
+--- a/glib/gpattern.h
++++ b/glib/gpattern.h
+@@ -35,6 +35,7 @@ GLIB_AVAILABLE_IN_ALL
+ GPatternSpec* g_pattern_spec_new       (const gchar  *pattern);
+ GLIB_AVAILABLE_IN_ALL
+ void          g_pattern_spec_free      (GPatternSpec *pspec);
++void          g_pattern_spec_free_adapter (gpointer pspec);
+ GLIB_AVAILABLE_IN_2_70
+ GPatternSpec *g_pattern_spec_copy (GPatternSpec *pspec);
+ GLIB_AVAILABLE_IN_ALL
+diff --git a/glib/gqueue.c b/glib/gqueue.c
+index a5c4f18..5c72f68 100644
+--- a/glib/gqueue.c
++++ b/glib/gqueue.c
+@@ -92,6 +92,11 @@ g_queue_free (GQueue *queue)
+   g_list_free (queue->head);
+   g_slice_free (GQueue, queue);
+ }
++void
++g_queue_free_adapter (gpointer queue)
++{
++  g_queue_free ((GQueue*) queue);
++}
+ 
+ /**
+  * g_queue_free_full:
+@@ -110,7 +115,21 @@ void
+ g_queue_free_full (GQueue        *queue,
+                   GDestroyNotify  free_func)
+ {
+-  g_queue_foreach (queue, (GFunc) free_func, NULL);
++  // Expanded the implentation of g_queue_foreach to avoid func ptr cast.
++  //g_queue_foreach (queue, (GFunc) free_func, NULL);
++  GList *list;
++
++  g_return_if_fail (queue != NULL);
++  g_return_if_fail (free_func != NULL);
++  
++  list = queue->head;
++  while (list)
++    {
++      GList *next = list->next;
++      free_func (list->data);
++      list = next;
++    }
++
+   g_queue_free (queue);
+ }
+ 
+@@ -169,7 +188,17 @@ g_queue_clear_full (GQueue          *queue,
+   g_return_if_fail (queue != NULL);
+ 
+   if (free_func != NULL)
+-    g_queue_foreach (queue, (GFunc) free_func, NULL);
++  {
++    GList *list;
++    
++    list = queue->head;
++    while (list)
++      {
++        GList *next = list->next;
++        free_func (list->data);
++        list = next;
++      }
++  }
+ 
+   g_queue_clear (queue);
+ }
+diff --git a/glib/gqueue.h b/glib/gqueue.h
+index c3a28c8..4ae077e 100644
+--- a/glib/gqueue.h
++++ b/glib/gqueue.h
+@@ -75,6 +75,7 @@ GLIB_AVAILABLE_IN_ALL
+ GQueue*  g_queue_new            (void);
+ GLIB_AVAILABLE_IN_ALL
+ void     g_queue_free           (GQueue           *queue);
++void     g_queue_free_adapter   (gpointer          queue);
+ GLIB_AVAILABLE_IN_ALL
+ void     g_queue_free_full      (GQueue           *queue,
+ 				GDestroyNotify    free_func);
+diff --git a/glib/grefstring.c b/glib/grefstring.c
+index f201897..91f4e5c 100644
+--- a/glib/grefstring.c
++++ b/glib/grefstring.c
+@@ -284,6 +284,11 @@ g_ref_string_release (char *str)
+ 
+   g_atomic_rc_box_release_full (str, remove_if_interned);
+ }
++void
++g_ref_string_release_adapter (gpointer str)
++{
++  g_ref_string_release ((char *) str);
++}
+ 
+ /**
+  * g_ref_string_length:
+diff --git a/glib/grefstring.h b/glib/grefstring.h
+index ae7d173..5de2e72 100644
+--- a/glib/grefstring.h
++++ b/glib/grefstring.h
+@@ -37,6 +37,7 @@ GLIB_AVAILABLE_IN_2_58
+ char *  g_ref_string_acquire    (char       *str);
+ GLIB_AVAILABLE_IN_2_58
+ void    g_ref_string_release    (char       *str);
++void    g_ref_string_release_adapter    (gpointer str);
+ 
+ GLIB_AVAILABLE_IN_2_58
+ gsize   g_ref_string_length     (char       *str);
+diff --git a/glib/gregex.c b/glib/gregex.c
+index 39b9ede..c614141 100644
+--- a/glib/gregex.c
++++ b/glib/gregex.c
+@@ -265,6 +265,7 @@ static gboolean  interpolate_replacement        (const GMatchInfo *match_info,
+ static GList    *split_replacement              (const gchar *replacement,
+                                                  GError **error);
+ static void      free_interpolation_data        (InterpolationData *data);
++static void      free_interpolation_data_adapter(gpointer data);
+ 
+ static uint32_t
+ get_pcre2_compile_options (GRegexCompileFlags compile_flags)
+@@ -1352,7 +1353,7 @@ g_match_info_expand_references (const GMatchInfo  *match_info,
+   result = g_string_sized_new (strlen (string_to_expand));
+   interpolate_replacement (match_info, result, list);
+ 
+-  g_list_free_full (list, (GDestroyNotify) free_interpolation_data);
++  g_list_free_full (list, free_interpolation_data_adapter);
+ 
+   return g_string_free (result, FALSE);
+ }
+@@ -2817,6 +2818,11 @@ free_interpolation_data (InterpolationData *data)
+   g_free (data->text);
+   g_free (data);
+ }
++static void
++free_interpolation_data_adapter (gpointer data)
++{
++  free_interpolation_data ((InterpolationData*) data);
++}
+ 
+ static const gchar *
+ expand_escape (const gchar        *replacement,
+@@ -3089,7 +3095,7 @@ split_replacement (const gchar  *replacement,
+           start = p = expand_escape (replacement, p, data, error);
+           if (p == NULL)
+             {
+-              g_list_free_full (list, (GDestroyNotify) free_interpolation_data);
++              g_list_free_full (list, free_interpolation_data_adapter);
+               free_interpolation_data (data);
+ 
+               return NULL;
+@@ -3300,7 +3306,7 @@ g_regex_replace (const GRegex      *regex,
+   if (tmp_error != NULL)
+     g_propagate_error (error, tmp_error);
+ 
+-  g_list_free_full (list, (GDestroyNotify) free_interpolation_data);
++  g_list_free_full (list, free_interpolation_data_adapter);
+ 
+   return result;
+ }
+@@ -3509,7 +3515,7 @@ g_regex_check_replacement (const gchar  *replacement,
+   if (has_references)
+     *has_references = interpolation_list_needs_match (list);
+ 
+-  g_list_free_full (list, (GDestroyNotify) free_interpolation_data);
++  g_list_free_full (list, free_interpolation_data_adapter);
+ 
+   return TRUE;
+ }
+diff --git a/glib/gscanner.c b/glib/gscanner.c
+index 451feb6..7c2c304 100644
+--- a/glib/gscanner.c
++++ b/glib/gscanner.c
+@@ -530,6 +530,11 @@ g_scanner_destroy (GScanner *scanner)
+   g_free (scanner->buffer);
+   g_free (scanner);
+ }
++void
++g_scanner_destroy_adapter (gpointer scanner)
++{
++  g_scanner_destroy ((GScanner*) scanner);
++}
+ 
+ static void
+ g_scanner_msg_handler (GScanner		*scanner,
+diff --git a/glib/gscanner.h b/glib/gscanner.h
+index bbad353..c98f66c 100644
+--- a/glib/gscanner.h
++++ b/glib/gscanner.h
+@@ -216,6 +216,7 @@ GLIB_AVAILABLE_IN_ALL
+ GScanner*	g_scanner_new			(const GScannerConfig *config_templ);
+ GLIB_AVAILABLE_IN_ALL
+ void		g_scanner_destroy		(GScanner	*scanner);
++void		g_scanner_destroy_adapter	(gpointer        scanner);
+ GLIB_AVAILABLE_IN_ALL
+ void		g_scanner_input_file		(GScanner	*scanner,
+ 						 gint		input_fd);
+diff --git a/glib/gslist.c b/glib/gslist.c
+index 4e22958..e3ce80b 100644
+--- a/glib/gslist.c
++++ b/glib/gslist.c
+@@ -150,6 +150,11 @@ g_slist_free (GSList *list)
+ {
+   g_slice_free_chain (GSList, list, next);
+ }
++void
++g_slist_free_adapter (gpointer list)
++{
++  g_slist_free((GSList*) list);
++}
+ 
+ /**
+  * g_slist_free_1:
+@@ -197,7 +202,12 @@ void
+ g_slist_free_full (GSList         *list,
+ 		   GDestroyNotify  free_func)
+ {
+-  g_slist_foreach (list, (GFunc) free_func, NULL);
++  while (list)
++    {
++      GSList *next = list->next;
++      (*free_func) (list->data);
++      list = next;
++    }
+   g_slist_free (list);
+ }
+ 
+@@ -892,7 +902,7 @@ g_slist_foreach (GSList   *list,
+ static GSList*
+ g_slist_insert_sorted_real (GSList   *list,
+                             gpointer  data,
+-                            GFunc     func,
++                            GCompareDataFunc     func,
+                             gpointer  user_data)
+ {
+   GSList *tmp_list = list;
+@@ -910,14 +920,14 @@ g_slist_insert_sorted_real (GSList   *list,
+       return new_list;
+     }
+ 
+-  cmp = ((GCompareDataFunc) func) (data, tmp_list->data, user_data);
++  cmp = (func) (data, tmp_list->data, user_data);
+ 
+   while ((tmp_list->next) && (cmp > 0))
+     {
+       prev_list = tmp_list;
+       tmp_list = tmp_list->next;
+ 
+-      cmp = ((GCompareDataFunc) func) (data, tmp_list->data, user_data);
++      cmp = (func) (data, tmp_list->data, user_data);
+     }
+ 
+   new_list = _g_slist_alloc ();
+@@ -967,9 +977,9 @@ compare_data_func_trampoline (gconstpointer a, gconstpointer b, gpointer user_da
+ GSList *
+ g_slist_insert_sorted (GSList *list,
+                        gpointer data,
+-                       GCompareFunc func)
++                       GCompareDataFunc func)
+ {
+-  return g_slist_insert_sorted_real (list, data, (GFunc) compare_data_func_trampoline, func);
++  return g_slist_insert_sorted_real (list, data, compare_data_func_trampoline, func);
+ }
+ 
+ /**
+@@ -994,13 +1004,13 @@ g_slist_insert_sorted_with_data (GSList           *list,
+                                  GCompareDataFunc  func,
+                                  gpointer          user_data)
+ {
+-  return g_slist_insert_sorted_real (list, data, (GFunc) func, user_data);
++  return g_slist_insert_sorted_real (list, data, func, user_data);
+ }
+ 
+ static GSList *
+ g_slist_sort_merge (GSList   *l1,
+                     GSList   *l2,
+-                    GFunc     compare_func,
++                    GCompareDataFunc     compare_func,
+                     gpointer  user_data)
+ {
+   GSList list, *l;
+@@ -1010,7 +1020,7 @@ g_slist_sort_merge (GSList   *l1,
+ 
+   while (l1 && l2)
+     {
+-      cmp = ((GCompareDataFunc) compare_func) (l1->data, l2->data, user_data);
++      cmp = (compare_func) (l1->data, l2->data, user_data);
+ 
+       if (cmp <= 0)
+         {
+@@ -1030,7 +1040,7 @@ g_slist_sort_merge (GSList   *l1,
+ 
+ static GSList *
+ g_slist_sort_real (GSList   *list,
+-                   GFunc     compare_func,
++                   GCompareDataFunc     compare_func,
+                    gpointer  user_data)
+ {
+   GSList *l1, *l2;
+@@ -1074,9 +1084,9 @@ g_slist_sort_real (GSList   *list,
+  */
+ GSList *
+ g_slist_sort (GSList *list,
+-              GCompareFunc compare_func)
++              GCompareDataFunc compare_func)
+ {
+-  return g_slist_sort_real (list, (GFunc) compare_data_func_trampoline, compare_func);
++  return g_slist_sort_real (list, compare_data_func_trampoline, compare_func);
+ }
+ 
+ /**
+@@ -1094,7 +1104,7 @@ g_slist_sort_with_data (GSList           *list,
+                         GCompareDataFunc  compare_func,
+                         gpointer          user_data)
+ {
+-  return g_slist_sort_real (list, (GFunc) compare_func, user_data);
++  return g_slist_sort_real (list, compare_func, user_data);
+ }
+ 
+ /**
+diff --git a/glib/gslist.h b/glib/gslist.h
+index c8e0cf2..eb77b40 100644
+--- a/glib/gslist.h
++++ b/glib/gslist.h
+@@ -50,6 +50,7 @@ GLIB_AVAILABLE_IN_ALL
+ GSList*  g_slist_alloc                   (void) G_GNUC_WARN_UNUSED_RESULT;
+ GLIB_AVAILABLE_IN_ALL
+ void     g_slist_free                    (GSList           *list);
++void     g_slist_free_adapter            (gpointer          list);
+ GLIB_AVAILABLE_IN_ALL
+ void     g_slist_free_1                  (GSList           *list);
+ #define	 g_slist_free1		         g_slist_free_1
+@@ -69,7 +70,7 @@ GSList*  g_slist_insert                  (GSList           *list,
+ GLIB_AVAILABLE_IN_ALL
+ GSList*  g_slist_insert_sorted           (GSList           *list,
+ 					  gpointer          data,
+-					  GCompareFunc      func) G_GNUC_WARN_UNUSED_RESULT;
++					  GCompareDataFunc  func) G_GNUC_WARN_UNUSED_RESULT;
+ GLIB_AVAILABLE_IN_ALL
+ GSList*  g_slist_insert_sorted_with_data (GSList           *list,
+ 					  gpointer          data,
+@@ -129,7 +130,7 @@ void     g_slist_foreach                 (GSList           *list,
+ 					  gpointer          user_data);
+ GLIB_AVAILABLE_IN_ALL
+ GSList*  g_slist_sort                    (GSList           *list,
+-					  GCompareFunc      compare_func) G_GNUC_WARN_UNUSED_RESULT;
++					  GCompareDataFunc  compare_func) G_GNUC_WARN_UNUSED_RESULT;
+ GLIB_AVAILABLE_IN_ALL
+ GSList*  g_slist_sort_with_data          (GSList           *list,
+ 					  GCompareDataFunc  compare_func,
+diff --git a/glib/gstrfuncs.c b/glib/gstrfuncs.c
+index 391cf56..54c6c6a 100644
+--- a/glib/gstrfuncs.c
++++ b/glib/gstrfuncs.c
+@@ -2592,6 +2592,11 @@ g_strfreev (gchar **str_array)
+       g_free (str_array);
+     }
+ }
++void
++g_strfreev_adapter (gpointer str_array)
++{
++  g_strfreev ((gchar**) str_array);
++}
+ 
+ /**
+  * g_strdupv:
+@@ -2631,6 +2636,10 @@ g_strdupv (gchar **str_array)
+   else
+     return NULL;
+ }
++gpointer                g_strdupv_adapter        (gpointer       str_array)
++{
++  return (gpointer) g_strdupv ((gchar**) str_array);
++}
+ 
+ /**
+  * g_strjoinv:
+diff --git a/glib/gstrfuncs.h b/glib/gstrfuncs.h
+index cb021b6..1527c37 100644
+--- a/glib/gstrfuncs.h
++++ b/glib/gstrfuncs.h
+@@ -377,8 +377,10 @@ gchar*                g_strjoinv       (const gchar  *separator,
+ 					gchar       **str_array) G_GNUC_MALLOC;
+ GLIB_AVAILABLE_IN_ALL
+ void                  g_strfreev       (gchar       **str_array);
++void                  g_strfreev_adapter (gpointer    str_array);
+ GLIB_AVAILABLE_IN_ALL
+ gchar**               g_strdupv        (gchar       **str_array);
++gpointer              g_strdupv_adapter (gpointer     str_array);
+ GLIB_AVAILABLE_IN_ALL
+ guint                 g_strv_length    (gchar       **str_array);
+ 
+diff --git a/glib/gtestutils.c b/glib/gtestutils.c
+index 727cad6..a0b224b 100644
+--- a/glib/gtestutils.c
++++ b/glib/gtestutils.c
+@@ -2907,6 +2907,7 @@ g_test_add_data_func (const char *testpath,
+   g_test_add_vtable (testpath, 0, ctx, NULL, (GTestFixtureFunc) data_func_to_fixture_trampoline, NULL);
+ }
+ 
++#ifndef __EMSCRIPTEN__
+ /**
+  * g_test_add_data_func_full:
+  * @testpath: /-separated test case path name for the test.
+@@ -2973,6 +2974,7 @@ g_test_suite_case_exists (GTestSuite *suite,
+ 
+   return FALSE;
+ }
++#endif /* !__EMSCRIPTEN__ */
+ 
+ /**
+  * g_test_create_suite:
+@@ -3096,11 +3098,6 @@ test_has_prefix (gconstpointer a,
+     return g_strcmp0 (test_run_name_local, test_path_skipped_local);
+ }
+ 
+-static void test_case_free(gpointer ptr, gpointer user_data) {
+-  (void)user_data;
+-  g_free(ptr);
+-}
+-
+ static gboolean
+ test_case_run (GTestCase *tc)
+ {
+@@ -3175,7 +3172,7 @@ test_case_run (GTestCase *tc)
+       g_timer_destroy (test_run_timer);
+     }
+ 
+-  g_slist_free_full (filename_free_list, (GDestroyNotify)test_case_free);
++  g_slist_free_full (filename_free_list, g_test_case_free_adapter);
+   test_filename_free_list = old_free_list;
+   g_free (test_uri_base);
+   test_uri_base = old_base;
+@@ -3363,19 +3360,10 @@ g_test_case_free (GTestCase *test_case)
+   g_free (test_case->name);
+   g_slice_free (GTestCase, test_case);
+ }
+-
+-static void
+-test_case_free_trampoline (gpointer data, gpointer userdata)
+-{
+-  (void) userdata;
+-  g_test_case_free (data);
+-}
+-
+-static void
+-test_suite_free_trampoline (gpointer data, gpointer userdata)
++void
++g_test_case_free_adapter (gpointer test_case)
+ {
+-  (void)userdata;
+-  g_test_suite_free (data);
++  g_test_case_free ((GTestCase*) test_case);
+ }
+ 
+ /**
+@@ -3389,14 +3377,19 @@ test_suite_free_trampoline (gpointer data, gpointer userdata)
+ void
+ g_test_suite_free (GTestSuite *suite)
+ {
+-  g_slist_free_full (suite->cases, (GDestroyNotify)test_case_free_trampoline);
++  g_slist_free_full (suite->cases, g_test_case_free_adapter);
+ 
+   g_free (suite->name);
+ 
+-  g_slist_free_full (suite->suites, (GDestroyNotify)test_suite_free_trampoline);
++  g_slist_free_full (suite->suites, g_test_suite_free_adapter);
+ 
+   g_slice_free (GTestSuite, suite);
+ }
++void
++g_test_suite_free_adapter (gpointer suite)
++{
++  g_test_suite_free ((GTestSuite*) suite);
++}
+ 
+ static void
+ gtest_default_log_handler (const gchar    *log_domain,
+@@ -3675,7 +3668,7 @@ test_trap_clear (void)
+   g_clear_pointer (&test_trap_last_stderr, g_free);
+ }
+ 
+-#ifdef G_OS_UNIX
++#if defined(G_OS_UNIX) && ! defined(__EMSCRIPTEN__)
+ 
+ static int
+ safe_dup2 (int fd1,
+@@ -3704,6 +3697,7 @@ typedef struct {
+   GString *stderr_str;
+ } WaitForChildData;
+ 
++#ifndef __EMSCRIPTEN__
+ static void
+ check_complete (WaitForChildData *data)
+ {
+@@ -3874,6 +3868,7 @@ wait_for_child (GPid pid,
+   g_clear_pointer (&data.stdout_io, g_io_channel_unref);
+   g_clear_pointer (&data.stderr_io, g_io_channel_unref);
+ }
++#endif /* !__EMSCRIPTEN__ */
+ 
+ /**
+  * g_test_trap_fork:
+@@ -3923,7 +3918,7 @@ gboolean
+ g_test_trap_fork (guint64        usec_timeout,
+                   GTestTrapFlags test_trap_flags)
+ {
+-#ifdef G_OS_UNIX
++#if defined(G_OS_UNIX) && ! defined(__EMSCRIPTEN__)
+   int stdout_pipe[2] = { -1, -1 };
+   int stderr_pipe[2] = { -1, -1 };
+   int errsv;
+@@ -3995,6 +3990,7 @@ g_test_trap_fork (guint64        usec_timeout,
+ }
+ G_GNUC_END_IGNORE_DEPRECATIONS
+ 
++#ifndef __EMSCRIPTEN__
+ /**
+  * g_test_trap_subprocess:
+  * @test_path: (nullable): Test to run in a subprocess
+@@ -4142,6 +4138,7 @@ g_test_trap_subprocess (const char           *test_path,
+                   stderr_fd, !!(test_flags & G_TEST_SUBPROCESS_INHERIT_STDERR),
+                   usec_timeout);
+ }
++#endif /* !__EMSCRIPTEN__ */
+ 
+ /**
+  * g_test_subprocess:
+diff --git a/glib/gtestutils.h b/glib/gtestutils.h
+index 86ee4e5..2c7fda8 100644
+--- a/glib/gtestutils.h
++++ b/glib/gtestutils.h
+@@ -524,9 +524,11 @@ int           g_test_run_suite          (GTestSuite     *suite);
+ 
+ GLIB_AVAILABLE_IN_2_70
+ void          g_test_case_free          (GTestCase *test_case);
++void          g_test_case_free_adapter  (gpointer   test_case);
+ 
+ GLIB_AVAILABLE_IN_2_70
+ void          g_test_suite_free         (GTestSuite     *suite);
++void          g_test_suite_free_adapter (gpointer        suite);
+ 
+ GLIB_AVAILABLE_IN_ALL
+ void    g_test_trap_assertions          (const char     *domain,
+diff --git a/glib/gthread.c b/glib/gthread.c
+index c4e75fd..8fb864b 100644
+--- a/glib/gthread.c
++++ b/glib/gthread.c
+@@ -807,6 +807,11 @@ g_thread_unref (GThread *thread)
+         g_slice_free (GRealThread, real);
+     }
+ }
++void
++g_thread_unref_adapter (gpointer thread)
++{
++  g_thread_unref ((GThread *) thread);
++}
+ 
+ static void
+ g_thread_cleanup (gpointer data)
+diff --git a/glib/gthread.h b/glib/gthread.h
+index e96632b..3a2db25 100644
+--- a/glib/gthread.h
++++ b/glib/gthread.h
+@@ -143,6 +143,7 @@ GLIB_AVAILABLE_IN_2_32
+ GThread *       g_thread_ref                    (GThread        *thread);
+ GLIB_AVAILABLE_IN_2_32
+ void            g_thread_unref                  (GThread        *thread);
++void            g_thread_unref_adapter          (gpointer        thread);
+ GLIB_AVAILABLE_IN_2_32
+ GThread *       g_thread_new                    (const gchar    *name,
+                                                  GThreadFunc     func,
+@@ -352,6 +353,11 @@ g_mutex_locker_free (GMutexLocker *locker)
+ {
+   g_mutex_unlock ((GMutex *) locker);
+ }
++static inline void
++g_mutex_locker_free_adapter (gpointer locker)
++{
++  g_mutex_unlock ((GMutex*) locker);
++}
+ 
+ /**
+  * GRecMutexLocker:
+@@ -430,6 +436,11 @@ g_rec_mutex_locker_free (GRecMutexLocker *locker)
+ {
+   g_rec_mutex_unlock ((GRecMutex *) locker);
+ }
++static inline void
++g_rec_mutex_locker_free_adapter (gpointer locker)
++{
++  g_rec_mutex_locker_free ((GRecMutex*) locker);
++}
+ G_GNUC_END_IGNORE_DEPRECATIONS
+ 
+ /**
+@@ -541,6 +552,11 @@ g_rw_lock_writer_locker_free (GRWLockWriterLocker *locker)
+ {
+   g_rw_lock_writer_unlock ((GRWLock *) locker);
+ }
++static inline void
++g_rw_lock_writer_locker_free_adapter (gpointer locker)
++{
++  g_rw_lock_writer_locker_free ((GRWLockWriterLocker*) locker);
++}
+ G_GNUC_END_IGNORE_DEPRECATIONS
+ 
+ /**
+@@ -596,6 +612,11 @@ g_rw_lock_reader_locker_free (GRWLockReaderLocker *locker)
+ {
+   g_rw_lock_reader_unlock ((GRWLock *) locker);
+ }
++static inline void
++g_rw_lock_reader_locker_free_adapter (gpointer locker)
++{
++  g_rw_lock_reader_locker_free ((GRWLockReaderLocker*) locker);
++}
+ G_GNUC_END_IGNORE_DEPRECATIONS
+ 
+ G_END_DECLS
+diff --git a/glib/gtimer.c b/glib/gtimer.c
+index d2d2599..97ce2fe 100644
+--- a/glib/gtimer.c
++++ b/glib/gtimer.c
+@@ -114,6 +114,11 @@ g_timer_destroy (GTimer *timer)
+ 
+   g_free (timer);
+ }
++void
++g_timer_destroy_adapter (gpointer timer)
++{
++  g_timer_destroy ((GTimer*) timer);
++}
+ 
+ /**
+  * g_timer_start:
+diff --git a/glib/gtimer.h b/glib/gtimer.h
+index 439ffad..c4dff5a 100644
+--- a/glib/gtimer.h
++++ b/glib/gtimer.h
+@@ -47,6 +47,7 @@ GLIB_AVAILABLE_IN_ALL
+ GTimer*  g_timer_new	         (void);
+ GLIB_AVAILABLE_IN_ALL
+ void	 g_timer_destroy         (GTimer      *timer);
++void	 g_timer_destroy_adapter (gpointer     timer);
+ GLIB_AVAILABLE_IN_ALL
+ void	 g_timer_start	         (GTimer      *timer);
+ GLIB_AVAILABLE_IN_ALL
+diff --git a/glib/gtimezone.c b/glib/gtimezone.c
+index affa4b1..9dbed2c 100644
+--- a/glib/gtimezone.c
++++ b/glib/gtimezone.c
+@@ -103,6 +103,7 @@ typedef struct { gchar bytes[8]; } gint64_be;
+ typedef struct { gchar bytes[4]; } gint32_be;
+ typedef struct { gchar bytes[4]; } guint32_be;
+ 
++#ifndef __EMSCRIPTEN__
+ static inline gint64 gint64_from_be (const gint64_be be) {
+   gint64 tmp; memcpy (&tmp, &be, sizeof tmp); return GINT64_FROM_BE (tmp);
+ }
+@@ -114,6 +115,7 @@ static inline gint32 gint32_from_be (const gint32_be be) {
+ static inline guint32 guint32_from_be (const guint32_be be) {
+   guint32 tmp; memcpy (&tmp, &be, sizeof tmp); return GUINT32_FROM_BE (tmp);
+ }
++#endif
+ 
+ /* The layout of an IANA timezone file header */
+ struct tzhead
+@@ -273,6 +275,11 @@ again:
+                                                           ref_count - 1))
+     goto again;
+ }
++void
++g_time_zone_unref_adapter (gpointer tz)
++{
++  g_time_zone_unref ((GTimeZone*) tz);
++}
+ 
+ /**
+  * g_time_zone_ref:
+@@ -1153,8 +1160,8 @@ find_relative_date (TimeZoneDate *buffer)
+         g_date_add_days (&date, wday);
+       else
+         g_date_add_days (&date, wday - 1);
+-      buffer->mon = (int) g_date_get_month (&date);
+-      buffer->mday = (int) g_date_get_day (&date);
++      buffer->mon = g_date_get_month (&date);
++      buffer->mday = g_date_get_day (&date);
+       buffer->wday = 0;
+     }
+   else /* M.W.D */
+@@ -1481,8 +1488,8 @@ parse_julian_boundary (gchar** pos, TimeZoneDate *boundary,
+   g_date_clear (&date, 1);
+   g_date_set_julian (&date, day);
+   boundary->year = 0;
+-  boundary->mon = (int) g_date_get_month (&date);
+-  boundary->mday = (int) g_date_get_day (&date);
++  boundary->mon = g_date_get_month (&date);
++  boundary->mday = g_date_get_day (&date);
+   boundary->wday = 0;
+ 
+   return TRUE;
+diff --git a/glib/gtimezone.h b/glib/gtimezone.h
+index 679ed4e..2aa9037 100644
+--- a/glib/gtimezone.h
++++ b/glib/gtimezone.h
+@@ -70,6 +70,7 @@ GLIB_AVAILABLE_IN_ALL
+ GTimeZone *             g_time_zone_ref                                 (GTimeZone   *tz);
+ GLIB_AVAILABLE_IN_ALL
+ void                    g_time_zone_unref                               (GTimeZone   *tz);
++void                    g_time_zone_unref_adapter                       (gpointer     tz);
+ 
+ GLIB_AVAILABLE_IN_ALL
+ gint                    g_time_zone_find_interval                       (GTimeZone   *tz,
+diff --git a/glib/gtree.c b/glib/gtree.c
+index bbd609e..e7bf741 100644
+--- a/glib/gtree.c
++++ b/glib/gtree.c
+@@ -161,11 +161,11 @@ g_tree_node_new (gpointer key,
+  * Returns: a newly allocated #GTree
+  */
+ GTree *
+-g_tree_new (GCompareFunc key_compare_func)
++g_tree_new (GCompareDataFunc key_compare_func)
+ {
+   g_return_val_if_fail (key_compare_func != NULL, NULL);
+ 
+-  return g_tree_new_full ((GCompareDataFunc) key_compare_func, NULL,
++  return g_tree_new_full (key_compare_func, NULL,
+                           NULL, NULL);
+ }
+ 
+@@ -433,6 +433,11 @@ g_tree_unref (GTree *tree)
+       g_slice_free (GTree, tree);
+     }
+ }
++void
++g_tree_unref_adapter (gpointer tree)
++{
++  g_tree_unref ((GTree*) tree);
++}
+ 
+ /**
+  * g_tree_destroy:
+diff --git a/glib/gtree.h b/glib/gtree.h
+index 74ab9ce..195f8eb 100644
+--- a/glib/gtree.h
++++ b/glib/gtree.h
+@@ -71,7 +71,7 @@ typedef gboolean (*GTraverseNodeFunc) (GTreeNode *node,
+ /* Balanced binary trees
+  */
+ GLIB_AVAILABLE_IN_ALL
+-GTree*   g_tree_new             (GCompareFunc      key_compare_func);
++GTree*   g_tree_new             (GCompareDataFunc      key_compare_func);
+ GLIB_AVAILABLE_IN_ALL
+ GTree*   g_tree_new_with_data   (GCompareDataFunc  key_compare_func,
+                                  gpointer          key_compare_data);
+@@ -92,6 +92,7 @@ GLIB_AVAILABLE_IN_ALL
+ GTree*   g_tree_ref             (GTree            *tree);
+ GLIB_AVAILABLE_IN_ALL
+ void     g_tree_unref           (GTree            *tree);
++void     g_tree_unref_adapter   (gpointer          tree);
+ GLIB_AVAILABLE_IN_ALL
+ void     g_tree_destroy         (GTree            *tree);
+ GLIB_AVAILABLE_IN_2_68
+diff --git a/glib/gvariant-core.c b/glib/gvariant-core.c
+index f5e9ddd..013f8d7 100644
+--- a/glib/gvariant-core.c
++++ b/glib/gvariant-core.c
+@@ -800,6 +800,11 @@ g_variant_unref (GVariant *value)
+       g_slice_free (GVariant, value);
+     }
+ }
++void
++g_variant_unref_adapter (gpointer value)
++{
++  g_variant_unref ((GVariant*) value);
++}
+ 
+ /**
+  * g_variant_ref:
+diff --git a/glib/gvariant.c b/glib/gvariant.c
+index be2ffb8..687d0e6 100644
+--- a/glib/gvariant.c
++++ b/glib/gvariant.c
+@@ -3094,6 +3094,11 @@ g_variant_iter_free (GVariantIter *iter)
+ 
+   g_slice_free (struct heap_iter, GVHI(iter));
+ }
++void
++g_variant_iter_free_adapter (gpointer iter)
++{
++  g_variant_iter_free ((GVariantIter*) iter);
++}
+ 
+ /**
+  * g_variant_iter_next_value:
+@@ -3320,6 +3325,11 @@ g_variant_builder_unref (GVariantBuilder *builder)
+ 
+   g_slice_free (struct heap_builder, GVHB(builder));
+ }
++void
++g_variant_builder_unref_adapter (gpointer builder)
++{
++  g_variant_builder_unref((GVariantBuilder*) builder);
++}
+ 
+ /**
+  * g_variant_builder_ref:
+@@ -4014,7 +4024,7 @@ g_variant_dict_init (GVariantDict *dict,
+   gchar *key;
+   GVariant *value;
+ 
+-  GVSD(dict)->values = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify) g_variant_unref);
++  GVSD(dict)->values = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_variant_unref_adapter);
+   GVSD(dict)->magic = GVSD_MAGIC;
+ 
+   if (from_asv)
+@@ -4330,6 +4340,11 @@ g_variant_dict_unref (GVariantDict *dict)
+       g_slice_free (struct heap_dict, (struct heap_dict *) dict);
+     }
+ }
++void
++g_variant_dict_unref_adapter (gpointer dict)
++{
++  g_variant_dict_unref ((GVariantDict*) dict);
++}
+ 
+ 
+ /* Format strings {{{1 */
+diff --git a/glib/gvariant.h b/glib/gvariant.h
+index e7087a1..ce85e9f 100644
+--- a/glib/gvariant.h
++++ b/glib/gvariant.h
+@@ -59,6 +59,7 @@ typedef enum
+ 
+ GLIB_AVAILABLE_IN_ALL
+ void                            g_variant_unref                         (GVariant             *value);
++void                            g_variant_unref_adapter                 (gpointer              value);
+ GLIB_AVAILABLE_IN_ALL
+ GVariant *                      g_variant_ref                           (GVariant             *value);
+ GLIB_AVAILABLE_IN_ALL
+@@ -284,6 +285,7 @@ GLIB_AVAILABLE_IN_ALL
+ gsize                           g_variant_iter_n_children               (GVariantIter         *iter);
+ GLIB_AVAILABLE_IN_ALL
+ void                            g_variant_iter_free                     (GVariantIter         *iter);
++void                            g_variant_iter_free_adapter             (gpointer              iter);
+ GLIB_AVAILABLE_IN_ALL
+ GVariant *                      g_variant_iter_next_value               (GVariantIter         *iter);
+ GLIB_AVAILABLE_IN_ALL
+@@ -377,6 +379,7 @@ GLIB_AVAILABLE_IN_ALL
+ GVariantBuilder *               g_variant_builder_new                   (const GVariantType   *type);
+ GLIB_AVAILABLE_IN_ALL
+ void                            g_variant_builder_unref                 (GVariantBuilder      *builder);
++void                            g_variant_builder_unref_adapter         (gpointer              builder);
+ GLIB_AVAILABLE_IN_ALL
+ GVariantBuilder *               g_variant_builder_ref                   (GVariantBuilder      *builder);
+ GLIB_AVAILABLE_IN_ALL
+@@ -535,6 +538,7 @@ GLIB_AVAILABLE_IN_2_40
+ GVariantDict *                  g_variant_dict_ref                      (GVariantDict         *dict);
+ GLIB_AVAILABLE_IN_2_40
+ void                            g_variant_dict_unref                    (GVariantDict         *dict);
++void                            g_variant_dict_unref_adapter            (gpointer              dict);
+ 
+ G_END_DECLS
+ 
+diff --git a/glib/gvarianttype.c b/glib/gvarianttype.c
+index 58a4a59..9df7ab9 100644
+--- a/glib/gvarianttype.c
++++ b/glib/gvarianttype.c
+@@ -376,6 +376,11 @@ g_variant_type_free (GVariantType *type)
+ 
+   g_free (type);
+ }
++void
++g_variant_type_free_adapter (gpointer type)
++{
++  g_variant_type_free ((GVariantType*) type);
++}
+ 
+ /**
+  * g_variant_type_copy:
+diff --git a/glib/gvarianttype.h b/glib/gvarianttype.h
+index 6374957..d60de16 100644
+--- a/glib/gvarianttype.h
++++ b/glib/gvarianttype.h
+@@ -304,6 +304,7 @@ gboolean                        g_variant_type_string_scan              (const g
+ /* create/destroy */
+ GLIB_AVAILABLE_IN_ALL
+ void                            g_variant_type_free                     (GVariantType        *type);
++void                            g_variant_type_free_adapter             (gpointer             type);
+ GLIB_AVAILABLE_IN_ALL
+ GVariantType *                  g_variant_type_copy                     (const GVariantType  *type);
+ GLIB_AVAILABLE_IN_ALL
+diff --git a/gobject/gbinding.c b/gobject/gbinding.c
+index 204dc44..f6d7ae3 100644
+--- a/gobject/gbinding.c
++++ b/gobject/gbinding.c
+@@ -108,6 +108,7 @@
+ #include "config.h"
+ 
+ #include <string.h>
++#include <stdio.h>
+ 
+ #include "gbinding.h"
+ #include "genums.h"
+@@ -166,6 +167,11 @@ binding_context_ref (BindingContext *context)
+ {
+   return g_atomic_rc_box_acquire (context);
+ }
++static gpointer
++binding_context_ref_adapter (gpointer context)
++{
++  return binding_context_ref ((BindingContext*) context);
++}
+ 
+ static void
+ binding_context_clear (BindingContext *context)
+@@ -174,11 +180,21 @@ binding_context_clear (BindingContext *context)
+   g_weak_ref_clear (&context->source);
+   g_weak_ref_clear (&context->target);
+ }
++static void
++binding_context_clear_adapter (gpointer context)
++{
++  binding_context_clear ((BindingContext *) context);
++}
+ 
+ static void
+ binding_context_unref (BindingContext *context)
+ {
+-  g_atomic_rc_box_release_full (context, (GDestroyNotify) binding_context_clear);
++  g_atomic_rc_box_release_full (context, binding_context_clear_adapter);
++}
++static void
++binding_context_unref_gclosurenotify_adapter (gpointer context, GClosure* closure)
++{
++  binding_context_unref ((BindingContext *) context);
+ }
+ 
+ /* Reference counting for the transform functions to ensure that they're always
+@@ -223,11 +239,16 @@ transform_func_clear (TransformFunc *func)
+   if (func->destroy_notify)
+     func->destroy_notify (func->transform_data);
+ }
++static void
++transform_func_clear_adapter (gpointer func)
++{
++  transform_func_clear((TransformFunc*) func);
++}
+ 
+ static void
+ transform_func_unref (TransformFunc *func)
+ {
+-  g_atomic_rc_box_release_full (func, (GDestroyNotify) transform_func_clear);
++  g_atomic_rc_box_release_full (func, transform_func_clear_adapter);
+ }
+ 
+ #define G_BINDING_CLASS(klass)          (G_TYPE_CHECK_CLASS_CAST ((klass), G_TYPE_BINDING, GBindingClass))
+@@ -796,6 +817,12 @@ g_binding_get_property (GObject    *gobject,
+ static void
+ g_binding_constructed (GObject *gobject)
+ {
++#ifdef __EMSCRIPTEN__
++  // print to stderr to help debugging which funcion and line we are on
++  fprintf(stderr, "%s (%d) Commented this out - ARL\n", __FUNCTION__, __LINE__);
++  return;
++#else
++
+   GBinding *binding = G_BINDING (gobject);
+   GBindingTransformFunc transform_func = default_transform;
+   GObject *source, *target;
+@@ -828,15 +855,15 @@ g_binding_constructed (GObject *gobject)
+ 
+   source_property_detail = g_quark_from_string (binding->source_property);
+   source_notify_closure = g_cclosure_new (G_CALLBACK (on_source_notify),
+-                                          binding_context_ref (binding->context),
+-                                          (GClosureNotify) binding_context_unref);
++                                          binding_context_ref_adapter (binding->context),
++                                          binding_context_unref_gclosurenotify_adapter);
+   binding->source_notify = g_signal_connect_closure_by_id (source,
+                                                            gobject_notify_signal_id,
+                                                            source_property_detail,
+                                                            source_notify_closure,
+                                                            FALSE);
+ 
+-  g_object_weak_ref (source, weak_unbind, binding_context_ref (binding->context));
++  g_object_weak_ref (source, weak_unbind, binding_context_ref_adapter (binding->context));
+ 
+   if (binding->flags & G_BINDING_BIDIRECTIONAL)
+     {
+@@ -845,8 +872,8 @@ g_binding_constructed (GObject *gobject)
+ 
+       target_property_detail = g_quark_from_string (binding->target_property);
+       target_notify_closure = g_cclosure_new (G_CALLBACK (on_target_notify),
+-                                              binding_context_ref (binding->context),
+-                                              (GClosureNotify) binding_context_unref);
++                                              binding_context_ref_adapter(binding->context),
++                                              binding_context_unref_gclosurenotify_adapter);
+       binding->target_notify = g_signal_connect_closure_by_id (target,
+                                                                gobject_notify_signal_id,
+                                                                target_property_detail,
+@@ -856,7 +883,7 @@ g_binding_constructed (GObject *gobject)
+ 
+   if (target != source)
+     {
+-      g_object_weak_ref (target, weak_unbind, binding_context_ref (binding->context));
++      g_object_weak_ref (target, weak_unbind, binding_context_ref_adapter (binding->context));
+ 
+       /* Need to remember separately if a target weak notify was installed as
+        * unlike for the source it can exist independently of the property
+@@ -866,6 +893,7 @@ g_binding_constructed (GObject *gobject)
+ 
+   g_object_unref (source);
+   g_object_unref (target);
++#endif
+ }
+ 
+ static void
+diff --git a/gobject/gboxed.c b/gobject/gboxed.c
+index b9d60ed..4f6c96b 100644
+--- a/gobject/gboxed.c
++++ b/gobject/gboxed.c
+@@ -190,8 +190,8 @@ g_strv_get_type (void)
+     {
+       GType g_define_type_id =
+         g_boxed_type_register_static (g_intern_static_string ("GStrv"),
+-                                      (GBoxedCopyFunc) g_strdupv,
+-                                      (GBoxedFreeFunc) g_strfreev);
++                                      g_strdupv_adapter,
++                                      g_strfreev_adapter);
+ 
+       g_once_init_leave (&static_g_define_type_id, g_define_type_id);
+     }
+diff --git a/gobject/gclosure.c b/gobject/gclosure.c
+index 8d5d88d..00608f4 100644
+--- a/gobject/gclosure.c
++++ b/gobject/gclosure.c
+@@ -26,6 +26,7 @@
+ 
+ #include "../glib/gvalgrind.h"
+ #include <string.h>
++#include <stdio.h>
+ 
+ #include <ffi.h>
+ 
+@@ -234,76 +235,78 @@ static inline void
+ closure_invoke_notifiers (GClosure *closure,
+ 			  guint     notify_type)
+ {
+-  /* notifier layout:
+-   *     n_guards    n_guards     n_fnotif.  n_inotifiers
+-   * ->[[pre_guards][post_guards][fnotifiers][inotifiers]]
+-   *
+-   * CLOSURE_N_MFUNCS(cl)    = n_guards + n_guards;
+-   * CLOSURE_N_NOTIFIERS(cl) = CLOSURE_N_MFUNCS(cl) + n_fnotifiers + n_inotifiers
+-   *
+-   * constrains/catches:
+-   * - closure->notifiers may be reloacted during callback
+-   * - closure->n_fnotifiers and closure->n_inotifiers may change during callback
+-   * - i.e. callbacks can be removed/added during invocation
+-   * - must prepare for callback removal during FNOTIFY and INOTIFY (done via ->marshal= & ->data=)
+-   * - must distinguish (->marshal= & ->data=) for INOTIFY vs. FNOTIFY (via ->in_inotify)
+-   * + closure->n_guards is const during PRE_NOTIFY & POST_NOTIFY
+-   * + none of the callbacks can cause recursion
+-   * + closure->n_inotifiers is const 0 during FNOTIFY
+-   */
+-  switch (notify_type)
+-    {
+-      GClosureNotifyData *ndata;
+-      guint i, offs;
+-    case FNOTIFY:
+-      while (closure->n_fnotifiers)
+-	{
+-          guint n;
+-	  DEC_ASSIGN (closure, n_fnotifiers, &n);
+-
+-	  ndata = closure->notifiers + CLOSURE_N_MFUNCS (closure) + n;
+-	  closure->marshal = (GClosureMarshal) ndata->notify;
+-	  closure->data = ndata->data;
+-	  ndata->notify (ndata->data, closure);
+-	}
+-      closure->marshal = NULL;
+-      closure->data = NULL;
+-      break;
+-    case INOTIFY:
+-      SET (closure, in_inotify, TRUE);
+-      while (closure->n_inotifiers)
+-	{
+-          guint n;
+-          DEC_ASSIGN (closure, n_inotifiers, &n);
+-
+-	  ndata = closure->notifiers + CLOSURE_N_MFUNCS (closure) + closure->n_fnotifiers + n;
+-	  closure->marshal = (GClosureMarshal) ndata->notify;
+-	  closure->data = ndata->data;
+-	  ndata->notify (ndata->data, closure);
+-	}
+-      closure->marshal = NULL;
+-      closure->data = NULL;
+-      SET (closure, in_inotify, FALSE);
+-      break;
+-    case PRE_NOTIFY:
+-      i = closure->n_guards;
+-      offs = 0;
+-      while (i--)
+-	{
+-	  ndata = closure->notifiers + offs + i;
+-	  ndata->notify (ndata->data, closure);
+-	}
+-      break;
+-    case POST_NOTIFY:
+-      i = closure->n_guards;
+-      offs = i;
+-      while (i--)
+-	{
+-	  ndata = closure->notifiers + offs + i;
+-	  ndata->notify (ndata->data, closure);
+-	}
+-      break;
+-    }
++  fprintf(stderr, "%s (%d): I commented this out - ARL\n", __FUNCTION__, __LINE__);
++  return;
++ //  /* notifier layout:
++ //   *     n_guards    n_guards     n_fnotif.  n_inotifiers
++ //   * ->[[pre_guards][post_guards][fnotifiers][inotifiers]]
++ //   *
++ //   * CLOSURE_N_MFUNCS(cl)    = n_guards + n_guards;
++ //   * CLOSURE_N_NOTIFIERS(cl) = CLOSURE_N_MFUNCS(cl) + n_fnotifiers + n_inotifiers
++ //   *
++ //   * constrains/catches:
++ //   * - closure->notifiers may be reloacted during callback
++ //   * - closure->n_fnotifiers and closure->n_inotifiers may change during callback
++ //   * - i.e. callbacks can be removed/added during invocation
++ //   * - must prepare for callback removal during FNOTIFY and INOTIFY (done via ->marshal= & ->data=)
++ //   * - must distinguish (->marshal= & ->data=) for INOTIFY vs. FNOTIFY (via ->in_inotify)
++ //   * + closure->n_guards is const during PRE_NOTIFY & POST_NOTIFY
++ //   * + none of the callbacks can cause recursion
++ //   * + closure->n_inotifiers is const 0 during FNOTIFY
++ //   */
++ //  switch (notify_type)
++ //    {
++ //      GClosureNotifyData *ndata;
++ //      guint i, offs;
++ //    case FNOTIFY:
++ //      while (closure->n_fnotifiers)
++	// {
++ //          guint n;
++	//   DEC_ASSIGN (closure, n_fnotifiers, &n);
++	//
++	//   ndata = closure->notifiers + CLOSURE_N_MFUNCS (closure) + n;
++	//   closure->marshal = (GClosureMarshal) ndata->notify;
++	//   closure->data = ndata->data;
++	//   ndata->notify (ndata->data, closure);
++	// }
++ //      closure->marshal = NULL;
++ //      closure->data = NULL;
++ //      break;
++ //    case INOTIFY:
++ //      SET (closure, in_inotify, TRUE);
++ //      while (closure->n_inotifiers)
++	// {
++ //          guint n;
++ //          DEC_ASSIGN (closure, n_inotifiers, &n);
++	//
++	//   ndata = closure->notifiers + CLOSURE_N_MFUNCS (closure) + closure->n_fnotifiers + n;
++	//   closure->marshal = (GClosureMarshal) ndata->notify;
++	//   closure->data = ndata->data;
++	//   ndata->notify (ndata->data, closure);
++	// }
++ //      closure->marshal = NULL;
++ //      closure->data = NULL;
++ //      SET (closure, in_inotify, FALSE);
++ //      break;
++ //    case PRE_NOTIFY:
++ //      i = closure->n_guards;
++ //      offs = 0;
++ //      while (i--)
++	// {
++	//   ndata = closure->notifiers + offs + i;
++	//   ndata->notify (ndata->data, closure);
++	// }
++ //      break;
++ //    case POST_NOTIFY:
++ //      i = closure->n_guards;
++ //      offs = i;
++ //      while (i--)
++	// {
++	//   ndata = closure->notifiers + offs + i;
++	//   ndata->notify (ndata->data, closure);
++	// }
++ //      break;
++ //    }
+ }
+ 
+ static void
+@@ -564,6 +567,11 @@ g_closure_ref (GClosure *closure)
+ 
+   return closure;
+ }
++gpointer g_closure_ref_adapter (gpointer closure)
++{
++  GClosure* result = g_closure_ref ((GClosure*) closure);
++  return (gpointer) result;
++}
+ 
+ /**
+  * g_closure_invalidate:
+@@ -649,6 +657,11 @@ g_closure_unref (GClosure *closure)
+         g_free (G_REAL_CLOSURE (closure));
+     }
+ }
++void
++g_closure_unref_adapter (gpointer closure)
++{
++  g_closure_unref ((GClosure*) closure);
++}
+ 
+ /**
+  * g_closure_sink:
+diff --git a/gobject/gclosure.h b/gobject/gclosure.h
+index 3b139b0..3402792 100644
+--- a/gobject/gclosure.h
++++ b/gobject/gclosure.h
+@@ -243,10 +243,12 @@ GClosure* g_signal_type_cclosure_new		(GType          itype,
+ /* --- prototypes --- */
+ GOBJECT_AVAILABLE_IN_ALL
+ GClosure* g_closure_ref				(GClosure	*closure);
++gpointer  g_closure_ref_adapter		        (gpointer        closure);
+ GOBJECT_AVAILABLE_IN_ALL
+ void	  g_closure_sink			(GClosure	*closure);
+ GOBJECT_AVAILABLE_IN_ALL
+ void	  g_closure_unref			(GClosure	*closure);
++void      g_closure_unref_adapter               (gpointer        closure);
+ /* intimidating */
+ GOBJECT_AVAILABLE_IN_ALL
+ GClosure* g_closure_new_simple			(guint		 sizeof_closure,
+diff --git a/gobject/genums.c b/gobject/genums.c
+index 1fe7f72..ee42bf4 100644
+--- a/gobject/genums.c
++++ b/gobject/genums.c
+@@ -71,8 +71,12 @@
+ /* --- prototypes --- */
+ static void	g_enum_class_init		(GEnumClass	*class,
+ 						 gpointer	 class_data);
++static void	g_enum_class_init_adapter	(gpointer	 class,
++						 gpointer	 class_data);
+ static void	g_flags_class_init		(GFlagsClass	*class,
+ 						 gpointer	 class_data);
++static void     g_flags_class_init_adapter      (gpointer        class,
++		                                 gpointer        class_data);
+ static void	value_flags_enum_init		(GValue		*value);
+ static void	value_flags_enum_copy_value	(const GValue	*src_value,
+ 						 GValue		*dest_value);
+@@ -201,7 +205,7 @@ g_enum_register_static (const gchar	 *name,
+     sizeof (GEnumClass), /* class_size */
+     NULL,                /* base_init */
+     NULL,                /* base_finalize */
+-    (GClassInitFunc) g_enum_class_init,
++    g_enum_class_init_adapter,
+     NULL,                /* class_finalize */
+     NULL,                /* class_data */
+     0,                   /* instance_size */
+@@ -244,7 +248,7 @@ g_flags_register_static (const gchar	   *name,
+     sizeof (GFlagsClass), /* class_size */
+     NULL,                 /* base_init */
+     NULL,                 /* base_finalize */
+-    (GClassInitFunc) g_flags_class_init,
++    g_flags_class_init_adapter,
+     NULL,                 /* class_finalize */
+     NULL,                 /* class_data */
+     0,                    /* instance_size */
+@@ -305,7 +309,7 @@ g_enum_complete_type_info (GType	     g_enum_type,
+   info->class_size = sizeof (GEnumClass);
+   info->base_init = NULL;
+   info->base_finalize = NULL;
+-  info->class_init = (GClassInitFunc) g_enum_class_init;
++  info->class_init = g_enum_class_init_adapter;
+   info->class_finalize = NULL;
+   info->class_data = const_values;
+ }
+@@ -334,7 +338,7 @@ g_flags_complete_type_info (GType	       g_flags_type,
+   info->class_size = sizeof (GFlagsClass);
+   info->base_init = NULL;
+   info->base_finalize = NULL;
+-  info->class_init = (GClassInitFunc) g_flags_class_init;
++  info->class_init = g_flags_class_init_adapter;
+   info->class_finalize = NULL;
+   info->class_data = const_values;
+ }
+@@ -364,6 +368,12 @@ g_enum_class_init (GEnumClass *class,
+ 	}
+     }
+ }
++void
++g_enum_class_init_adapter (gpointer class,
++		           gpointer    class_data)
++{
++  g_enum_class_init ((GEnumClass*) class, class_data );
++}
+ 
+ static void
+ g_flags_class_init (GFlagsClass *class,
+@@ -386,6 +396,12 @@ g_flags_class_init (GFlagsClass *class,
+ 	}
+     }
+ }
++void
++g_flags_class_init_adapter (gpointer class,
++		            gpointer class_data)
++{
++  g_flags_class_init ((GFlagsClass*) class, class_data );
++}
+ 
+ /**
+  * g_enum_get_value_by_name:
+diff --git a/gobject/gobject-autocleanups.h b/gobject/gobject-autocleanups.h
+index bddb3f2..c363029 100644
+--- a/gobject/gobject-autocleanups.h
++++ b/gobject/gobject-autocleanups.h
+@@ -23,11 +23,11 @@
+ #error "Only <glib-object.h> can be included directly."
+ #endif
+ 
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GClosure, g_closure_unref)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GClosure, g_closure_unref_adapter)
+ G_DEFINE_AUTOPTR_CLEANUP_FUNC(GEnumClass, g_type_class_unref)
+ G_DEFINE_AUTOPTR_CLEANUP_FUNC(GFlagsClass, g_type_class_unref)
+ G_DEFINE_AUTOPTR_CLEANUP_FUNC(GObject, g_object_unref)
+ G_DEFINE_AUTOPTR_CLEANUP_FUNC(GInitiallyUnowned, g_object_unref)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GParamSpec, g_param_spec_unref)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GParamSpec, g_param_spec_unref_adapter)
+ G_DEFINE_AUTOPTR_CLEANUP_FUNC(GTypeClass, g_type_class_unref)
+-G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(GValue, g_value_unset)
++G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(GValue, g_value_unset_adapter)
+diff --git a/gobject/gobject.c b/gobject/gobject.c
+index 661ecf8..07cb6bd 100644
+--- a/gobject/gobject.c
++++ b/gobject/gobject.c
+@@ -202,11 +202,17 @@ G_STATIC_ASSERT(G_STRUCT_OFFSET(GObject, qdata) == G_STRUCT_OFFSET(GObjectReal,
+ 
+ /* --- prototypes --- */
+ static void	g_object_base_class_init		(GObjectClass	*class);
++static void	g_object_base_class_init_adapter	(gpointer        class);
+ static void	g_object_base_class_finalize		(GObjectClass	*class);
++static void	g_object_base_class_finalize_adapter	(gpointer        class);
+ static void	g_object_do_class_init			(GObjectClass	*class,
+ 							 gpointer	 class_data);
++static void	g_object_do_class_init_adapter		(gpointer        class,
++							 gpointer	 class_data);
+ static void	g_object_init				(GObject	*object,
+ 							 GObjectClass	*class);
++static void     g_object_init_adapter                   (GTypeInstance	*object,
++	                                                 gpointer	 class);
+ static GObject*	g_object_constructor			(GType                  type,
+ 							 guint                  n_construct_properties,
+ 							 GObjectConstructParam *construct_params);
+@@ -426,14 +432,14 @@ _g_object_type_init (void)
+   };
+   GTypeInfo info = {
+     sizeof (GObjectClass),
+-    (GBaseInitFunc) g_object_base_class_init,
+-    (GBaseFinalizeFunc) g_object_base_class_finalize,
+-    (GClassInitFunc) g_object_do_class_init,
++    g_object_base_class_init_adapter,
++    g_object_base_class_finalize_adapter,
++    g_object_do_class_init_adapter,
+     NULL	/* class_destroy */,
+     NULL	/* class_data */,
+     sizeof (GObject),
+     0		/* n_preallocs */,
+-    (GInstanceInitFunc) g_object_init,
++    g_object_init_adapter,
+     NULL,	/* value_table */
+   };
+   static const GTypeValueTable value_table = {
+@@ -495,6 +501,11 @@ g_object_base_class_init (GObjectClass *class)
+   class->pspecs = NULL;
+   class->n_pspecs = 0;
+ }
++static void
++g_object_base_class_init_adapter (gpointer class)
++{
++  g_object_base_class_init ((GObjectClass *) class);
++}
+ 
+ static void
+ g_object_base_class_finalize (GObjectClass *class)
+@@ -517,6 +528,11 @@ g_object_base_class_finalize (GObjectClass *class)
+     }
+   g_list_free (list);
+ }
++static void
++g_object_base_class_finalize_adapter (gpointer class)
++{
++  g_object_base_class_finalize ((GObjectClass*) class);
++}
+ 
+ static void
+ g_object_do_class_init (GObjectClass *class,
+@@ -589,6 +605,12 @@ g_object_do_class_init (GObjectClass *class,
+    */
+   g_type_add_interface_check (NULL, object_interface_check_properties);
+ }
++static void
++g_object_do_class_init_adapter (gpointer      class,
++                                gpointer      class_data)
++{
++  g_object_do_class_init ((GObjectClass*) class, class_data);
++}
+ 
+ /* Sinks @pspec if it’s a floating ref. */
+ static inline gboolean
+@@ -1173,6 +1195,7 @@ g_object_interface_list_properties (gpointer      g_iface,
+   return pspecs;
+ }
+ 
++#ifndef __EMSCRIPTEN__
+ static inline guint
+ object_get_optional_flags (GObject *object)
+ {
+@@ -1198,6 +1221,7 @@ object_get_optional_flags_X (GObject *object)
+   return 0;
+ #endif
+ }
++#endif
+ 
+ #ifdef HAVE_OPTIONAL_FLAGS
+ static inline void
+@@ -1329,6 +1353,12 @@ g_object_init (GObject		*object,
+       G_UNLOCK (debug_objects);
+     });
+ }
++static void
++g_object_init_adapter (GTypeInstance	*object,
++	               gpointer	         class)
++{
++  g_object_init ((GObject*)object, (GObjectClass*) class);
++}
+ 
+ static void
+ g_object_do_set_property (GObject      *object,
+@@ -3396,6 +3426,11 @@ g_object_weak_unref (GObject    *object,
+  * thread if the object's last g_object_unref() might happen in another
+  * thread. Use #GWeakRef if thread-safety is required.
+  */
++static void
++g_nullify_pointer_adapter (gpointer data, GObject *where_the_object_was)
++{
++  g_nullify_pointer ((gpointer*)data);
++}
+ void
+ g_object_add_weak_pointer (GObject  *object, 
+                            gpointer *weak_pointer_location)
+@@ -3404,7 +3439,7 @@ g_object_add_weak_pointer (GObject  *object,
+   g_return_if_fail (weak_pointer_location != NULL);
+ 
+   g_object_weak_ref (object, 
+-                     (GWeakNotify) g_nullify_pointer, 
++                     g_nullify_pointer_adapter, 
+                      weak_pointer_location);
+ }
+ 
+@@ -3426,7 +3461,7 @@ g_object_remove_weak_pointer (GObject  *object,
+   g_return_if_fail (weak_pointer_location != NULL);
+ 
+   g_object_weak_unref (object, 
+-                       (GWeakNotify) g_nullify_pointer, 
++                       g_nullify_pointer_adapter, 
+                        weak_pointer_location);
+ }
+ 
+@@ -3787,6 +3822,11 @@ gpointer
+ 
+   return object;
+ }
++void
++(g_object_ref_adapter) (gpointer _object, GClosure *dummy)
++{
++  g_object_ref (_object);
++}
+ 
+ /**
+  * g_object_unref:
+@@ -3964,6 +4004,11 @@ g_object_unref (gpointer _object)
+         }
+     }
+ }
++void
++g_object_unref_adapter (gpointer _object, GClosure *dummy)
++{
++  g_object_unref (_object);
++}
+ 
+ /**
+  * g_clear_object: (skip)
+@@ -4742,8 +4787,8 @@ g_object_watch_closure (GObject  *object,
+   
+   g_closure_add_invalidate_notifier (closure, object, object_remove_closure);
+   g_closure_add_marshal_guards (closure,
+-				object, (GClosureNotify) g_object_ref,
+-				object, (GClosureNotify) g_object_unref);
++				object, g_object_ref_adapter,
++				object, g_object_unref_adapter);
+   G_LOCK (closure_array_mutex);
+   carray = g_datalist_id_remove_no_notify (&object->qdata, quark_closure_array);
+   if (!carray)
+diff --git a/gobject/gobject.h b/gobject/gobject.h
+index ea0157c..8dd278c 100644
+--- a/gobject/gobject.h
++++ b/gobject/gobject.h
+@@ -526,8 +526,12 @@ GOBJECT_AVAILABLE_IN_2_70
+ gpointer    g_object_take_ref                 (gpointer        object);
+ GOBJECT_AVAILABLE_IN_ALL
+ gpointer    g_object_ref                      (gpointer        object);
++void        g_object_ref_adapter              (gpointer        object,
++                                               GClosure       *dummy );
+ GOBJECT_AVAILABLE_IN_ALL
+ void        g_object_unref                    (gpointer        object);
++void        g_object_unref_adapter            (gpointer        object,
++                                               GClosure       *dummy );
+ GOBJECT_AVAILABLE_IN_ALL
+ void	    g_object_weak_ref		      (GObject	      *object,
+ 					       GWeakNotify     notify,
+diff --git a/gobject/gparam.c b/gobject/gparam.c
+index 00d8b77..2093666 100644
+--- a/gobject/gparam.c
++++ b/gobject/gparam.c
+@@ -60,12 +60,16 @@
+ #define PSPEC_APPLIES_TO_VALUE(pspec, value)	(G_TYPE_CHECK_VALUE_TYPE ((value), G_PARAM_SPEC_VALUE_TYPE (pspec)))
+ 
+ /* --- prototypes --- */
+-static void	g_param_spec_class_base_init	 (GParamSpecClass	*class);
+-static void	g_param_spec_class_base_finalize (GParamSpecClass	*class);
++static void	g_param_spec_class_base_init	 (gpointer	         class);
++static void	g_param_spec_class_base_finalize (gpointer 	         class);
+ static void	g_param_spec_class_init		 (GParamSpecClass	*class,
+ 						  gpointer               class_data);
+-static void	g_param_spec_init		 (GParamSpec		*pspec,
++static void	g_param_spec_class_init_adapter	 (gpointer               class,
++						  gpointer               class_data);
++static void     g_param_spec_init		 (GParamSpec		*pspec,
+ 						  GParamSpecClass	*class);
++static void     g_param_spec_init_adapter        (GTypeInstance		*pspec,
++						  gpointer	         class);
+ static void	g_param_spec_finalize		 (GParamSpec		*pspec);
+ static void	value_param_init		(GValue		*value);
+ static void	value_param_free_value		(GValue		*value);
+@@ -120,15 +124,15 @@ _g_param_type_init (void)
+   const GTypeInfo param_spec_info = {
+     sizeof (GParamSpecClass),
+ 
+-    (GBaseInitFunc) g_param_spec_class_base_init,
+-    (GBaseFinalizeFunc) g_param_spec_class_base_finalize,
+-    (GClassInitFunc) g_param_spec_class_init,
+-    (GClassFinalizeFunc) NULL,
++    g_param_spec_class_base_init,
++    g_param_spec_class_base_finalize,
++    g_param_spec_class_init_adapter,
++    NULL,
+     NULL,	/* class_data */
+ 
+     sizeof (GParamSpec),
+     0,		/* n_preallocs */
+-    (GInstanceInitFunc) g_param_spec_init,
++    g_param_spec_init_adapter,
+ 
+     &param_value_table,
+   };
+@@ -146,12 +150,12 @@ _g_param_type_init (void)
+ }
+ 
+ static void
+-g_param_spec_class_base_init (GParamSpecClass *class)
++g_param_spec_class_base_init (gpointer class)
+ {
+ }
+ 
+ static void
+-g_param_spec_class_base_finalize (GParamSpecClass *class)
++g_param_spec_class_base_finalize (gpointer class)
+ {
+ }
+ 
+@@ -167,6 +171,12 @@ g_param_spec_class_init (GParamSpecClass *class,
+ 
+   g_type_class_adjust_private_offset (class, &g_param_private_offset);
+ }
++static void
++g_param_spec_class_init_adapter (gpointer class,
++			 gpointer         class_data)
++{
++  g_param_spec_class_init ((GParamSpecClass*) class, class_data);
++}
+ 
+ static void
+ g_param_spec_init (GParamSpec      *pspec,
+@@ -183,6 +193,12 @@ g_param_spec_init (GParamSpec      *pspec,
+   pspec->ref_count = 1;
+   pspec->param_id = 0;
+ }
++static void
++g_param_spec_init_adapter (GTypeInstance *pspec,
++ 		           gpointer class)
++{
++  g_param_spec_init ((GParamSpec*) pspec, (GParamSpecClass*) class);
++}
+ 
+ static void
+ g_param_spec_finalize (GParamSpec *pspec)
+@@ -241,6 +257,10 @@ g_param_spec_unref (GParamSpec *pspec)
+       G_PARAM_SPEC_GET_CLASS (pspec)->finalize (pspec);
+     }
+ }
++void g_param_spec_unref_adapter (gpointer pspec)
++{
++  g_param_spec_unref ((GParamSpec*) pspec);
++}
+ 
+ /**
+  * g_param_spec_sink:
+@@ -1245,7 +1265,8 @@ g_param_spec_pool_list_owned (GParamSpecPool *pool,
+ 
+ static gint
+ pspec_compare_id (gconstpointer a,
+-		  gconstpointer b)
++		  gconstpointer b,
++                  gpointer dummy)
+ {
+   const GParamSpec *pspec1 = a, *pspec2 = b;
+ 
+diff --git a/gobject/gparam.h b/gobject/gparam.h
+index f65e76a..991d99a 100644
+--- a/gobject/gparam.h
++++ b/gobject/gparam.h
+@@ -297,6 +297,7 @@ GOBJECT_AVAILABLE_IN_ALL
+ GParamSpec*	g_param_spec_ref		(GParamSpec    *pspec);
+ GOBJECT_AVAILABLE_IN_ALL
+ void		g_param_spec_unref		(GParamSpec    *pspec);
++void		g_param_spec_unref_adapter	(gpointer       pspec);
+ GOBJECT_AVAILABLE_IN_ALL
+ void		g_param_spec_sink		(GParamSpec    *pspec);
+ GOBJECT_AVAILABLE_IN_ALL
+@@ -399,7 +400,7 @@ struct _GParamSpecTypeInfo
+   /* type system portion */
+   guint16         instance_size;                               /* obligatory */
+   guint16         n_preallocs;                                 /* optional */
+-  void		(*instance_init)	(GParamSpec   *pspec,  /* optional */
++  void		(*instance_init)	(GTypeInstance   *pspec,  /* optional */
+ 					 gpointer      class_data);
+ 
+   /* class portion */
+diff --git a/gobject/gparamspecs.c b/gobject/gparamspecs.c
+index 7d3f779..3c5a4d4 100644
+--- a/gobject/gparamspecs.c
++++ b/gobject/gparamspecs.c
+@@ -66,7 +66,7 @@
+ 
+ /* --- param spec functions --- */
+ static void
+-param_char_init (GParamSpec *pspec,
++param_char_init (GTypeInstance *pspec,
+                  gpointer    class_data)
+ {
+   GParamSpecChar *cspec = G_PARAM_SPEC_CHAR (pspec);
+@@ -106,7 +106,7 @@ param_char_validate (GParamSpec *pspec,
+ }
+ 
+ static void
+-param_uchar_init (GParamSpec *pspec,
++param_uchar_init (GTypeInstance *pspec,
+                   gpointer    class_data)
+ {
+   GParamSpecUChar *uspec = G_PARAM_SPEC_UCHAR (pspec);
+@@ -173,7 +173,7 @@ param_boolean_validate (GParamSpec *pspec,
+ }
+ 
+ static void
+-param_int_init (GParamSpec *pspec,
++param_int_init (GTypeInstance *pspec,
+                 gpointer    class_data)
+ {
+   GParamSpecInt *ispec = G_PARAM_SPEC_INT (pspec);
+@@ -224,7 +224,7 @@ param_int_values_cmp (GParamSpec   *pspec,
+ }
+ 
+ static void
+-param_uint_init (GParamSpec *pspec,
++param_uint_init (GTypeInstance *pspec,
+                  gpointer    class_data)
+ {
+   GParamSpecUInt *uspec = G_PARAM_SPEC_UINT (pspec);
+@@ -275,7 +275,7 @@ param_uint_values_cmp (GParamSpec   *pspec,
+ }
+ 
+ static void
+-param_long_init (GParamSpec *pspec,
++param_long_init (GTypeInstance *pspec,
+                  gpointer    class_data)
+ {
+   GParamSpecLong *lspec = G_PARAM_SPEC_LONG (pspec);
+@@ -331,7 +331,7 @@ param_long_values_cmp (GParamSpec   *pspec,
+ }
+ 
+ static void
+-param_ulong_init (GParamSpec *pspec,
++param_ulong_init (GTypeInstance *pspec,
+                   gpointer    class_data)
+ {
+   GParamSpecULong *uspec = G_PARAM_SPEC_ULONG (pspec);
+@@ -386,7 +386,7 @@ param_ulong_values_cmp (GParamSpec   *pspec,
+ }
+ 
+ static void
+-param_int64_init (GParamSpec *pspec,
++param_int64_init (GTypeInstance *pspec,
+                   gpointer    class_data)
+ {
+   GParamSpecInt64 *lspec = G_PARAM_SPEC_INT64 (pspec);
+@@ -437,7 +437,7 @@ param_int64_values_cmp (GParamSpec   *pspec,
+ }
+ 
+ static void
+-param_uint64_init (GParamSpec *pspec,
++param_uint64_init (GTypeInstance *pspec,
+                    gpointer    class_data)
+ {
+   GParamSpecUInt64 *uspec = G_PARAM_SPEC_UINT64 (pspec);
+@@ -488,7 +488,7 @@ param_uint64_values_cmp (GParamSpec   *pspec,
+ }
+ 
+ static void
+-param_unichar_init (GParamSpec *pspec,
++param_unichar_init (GTypeInstance *pspec,
+                     gpointer    class_data)
+ {
+   GParamSpecUnichar *uspec = G_PARAM_SPEC_UNICHAR (pspec);
+@@ -538,7 +538,7 @@ param_unichar_values_cmp (GParamSpec   *pspec,
+ }
+ 
+ static void
+-param_enum_init (GParamSpec *pspec,
++param_enum_init (GTypeInstance *pspec,
+                  gpointer    class_data)
+ {
+   GParamSpecEnum *espec = G_PARAM_SPEC_ENUM (pspec);
+@@ -594,7 +594,7 @@ param_enum_validate (GParamSpec *pspec,
+ }
+ 
+ static void
+-param_flags_init (GParamSpec *pspec,
++param_flags_init (GTypeInstance *pspec,
+                   gpointer    class_data)
+ {
+   GParamSpecFlags *fspec = G_PARAM_SPEC_FLAGS (pspec);
+@@ -650,7 +650,7 @@ param_flags_validate (GParamSpec *pspec,
+ }
+ 
+ static void
+-param_float_init (GParamSpec *pspec,
++param_float_init (GTypeInstance *pspec,
+                   gpointer    class_data)
+ {
+   GParamSpecFloat *fspec = G_PARAM_SPEC_FLOAT (pspec);
+@@ -704,7 +704,7 @@ param_float_values_cmp (GParamSpec   *pspec,
+ }
+ 
+ static void
+-param_double_init (GParamSpec *pspec,
++param_double_init (GTypeInstance *pspec,
+                    gpointer    class_data)
+ {
+   GParamSpecDouble *dspec = G_PARAM_SPEC_DOUBLE (pspec);
+@@ -758,7 +758,7 @@ param_double_values_cmp (GParamSpec   *pspec,
+ }
+ 
+ static void
+-param_string_init (GParamSpec *pspec,
++param_string_init (GTypeInstance *pspec,
+                    gpointer    class_data)
+ {
+   GParamSpecString *sspec = G_PARAM_SPEC_STRING (pspec);
+@@ -890,7 +890,7 @@ param_string_values_cmp (GParamSpec   *pspec,
+ }
+ 
+ static void
+-param_param_init (GParamSpec *pspec,
++param_param_init (GTypeInstance *pspec,
+                   gpointer    class_data)
+ {
+   /* GParamSpecParam *spec = G_PARAM_SPEC_PARAM (pspec); */
+@@ -934,7 +934,7 @@ param_param_validate (GParamSpec *pspec,
+ }
+ 
+ static void
+-param_boxed_init (GParamSpec *pspec,
++param_boxed_init (GTypeInstance *pspec,
+                   gpointer    class_data)
+ {
+   /* GParamSpecBoxed *bspec = G_PARAM_SPEC_BOXED (pspec); */
+@@ -961,7 +961,7 @@ param_boxed_values_cmp (GParamSpec    *pspec,
+ }
+ 
+ static void
+-param_pointer_init (GParamSpec *pspec,
++param_pointer_init (GTypeInstance *pspec,
+                     gpointer    class_data)
+ {
+   /* GParamSpecPointer *spec = G_PARAM_SPEC_POINTER (pspec); */
+@@ -988,7 +988,7 @@ param_pointer_values_cmp (GParamSpec   *pspec,
+ }
+ 
+ static void
+-param_value_array_init (GParamSpec *pspec,
++param_value_array_init (GTypeInstance *pspec,
+                         gpointer    class_data)
+ {
+   GParamSpecValueArray *aspec = G_PARAM_SPEC_VALUE_ARRAY (pspec);
+@@ -1140,7 +1140,7 @@ param_value_array_values_cmp (GParamSpec   *pspec,
+ }
+ 
+ static void
+-param_object_init (GParamSpec *pspec,
++param_object_init (GTypeInstance *pspec,
+                    gpointer    class_data)
+ {
+   /* GParamSpecObject *ospec = G_PARAM_SPEC_OBJECT (pspec); */
+@@ -1196,7 +1196,7 @@ param_object_values_cmp (GParamSpec   *pspec,
+ }
+ 
+ static void
+-param_override_init (GParamSpec *pspec,
++param_override_init (GTypeInstance *pspec,
+                      gpointer    class_data)
+ {
+   /* GParamSpecOverride *ospec = G_PARAM_SPEC_OVERRIDE (pspec); */
+@@ -1255,7 +1255,7 @@ param_override_values_cmp (GParamSpec   *pspec,
+ }
+ 
+ static void
+-param_gtype_init (GParamSpec *pspec,
++param_gtype_init (GTypeInstance *pspec,
+                   gpointer    class_data)
+ {
+ }
+@@ -1311,7 +1311,7 @@ param_gtype_values_cmp (GParamSpec   *pspec,
+ }
+ 
+ static void
+-param_variant_init (GParamSpec *pspec,
++param_variant_init (GTypeInstance *pspec,
+                     gpointer    class_data)
+ {
+   GParamSpecVariant *vspec = G_PARAM_SPEC_VARIANT (pspec);
+diff --git a/gobject/gsourceclosure.c b/gobject/gsourceclosure.c
+index 4b79b13..517a6c0 100644
+--- a/gobject/gsourceclosure.c
++++ b/gobject/gsourceclosure.c
+@@ -25,6 +25,9 @@
+ #include "gmarshal.h"
+ #include "gvalue.h"
+ #include "gvaluetypes.h"
++#include <stdio.h>
++#include <glib-object.h>
++
+ #if defined(G_OS_UNIX) && !defined(G_PLATFORM_WASM)
+ #include "glib-unix.h"
+ #endif
+@@ -78,6 +81,7 @@ source_closure_marshal_BOOLEAN__VOID (GClosure     *closure,
+   g_value_set_boolean (return_value, v_return);
+ }
+ 
++#ifndef __EMSCRIPTEN__
+ static gboolean
+ io_watch_closure_callback (GIOChannel   *channel,
+ 			   GIOCondition  condition,
+@@ -140,6 +144,7 @@ g_child_watch_closure_callback (GPid     pid,
+ 
+   return result;
+ }
++#endif
+ 
+ #if defined(G_OS_UNIX) && !defined(G_PLATFORM_WASM)
+ static gboolean
+@@ -170,7 +175,6 @@ g_unix_fd_source_closure_callback (int           fd,
+ 
+   return result;
+ }
+-#endif
+ 
+ static gboolean
+ source_closure_callback (gpointer data)
+@@ -188,6 +192,7 @@ source_closure_callback (gpointer data)
+ 
+   return result;
+ }
++#endif
+ 
+ static void
+ closure_callback_get (gpointer     cb_data,
+@@ -195,15 +200,18 @@ closure_callback_get (gpointer     cb_data,
+ 		      GSourceFunc *func,
+ 		      gpointer    *data)
+ {
++#ifdef __EMSCRIPTEN__
++  fprintf(stderr, "%s (%d): not implemented -ARL \n", __FUNCTION__, __LINE__);
++#else
+   GSourceFunc closure_callback = source->source_funcs->closure_callback;
+ 
+   if (!closure_callback)
+     {
++#if defined(G_OS_UNIX) && !defined(G_PLATFORM_WASM)
+       if (source->source_funcs == &g_io_watch_funcs)
+         closure_callback = (GSourceFunc)io_watch_closure_callback;
+       else if (source->source_funcs == &g_child_watch_funcs)
+         closure_callback = (GSourceFunc)g_child_watch_closure_callback;
+-#if defined(G_OS_UNIX) && !defined(G_PLATFORM_WASM)
+       else if (source->source_funcs == &g_unix_fd_source_funcs)
+         closure_callback = (GSourceFunc)g_unix_fd_source_closure_callback;
+ #endif
+@@ -217,11 +225,12 @@ closure_callback_get (gpointer     cb_data,
+ 
+   *func = closure_callback;
+   *data = cb_data;
++#endif
+ }
+ 
+ static GSourceCallbackFuncs closure_callback_funcs = {
+-  (void (*) (gpointer)) g_closure_ref,
+-  (void (*) (gpointer)) g_closure_unref,
++  (void(*)) g_closure_ref_adapter,
++  g_closure_unref_adapter,
+   closure_callback_get
+ };
+ 
+@@ -272,7 +281,12 @@ g_source_set_closure (GSource  *source,
+ 
+   if (G_CLOSURE_NEEDS_MARSHAL (closure))
+     {
++
++#ifdef __EMSCRIPTEN__
++      GClosureMarshal marshal = NULL;
++#else
+       GClosureMarshal marshal = (GClosureMarshal)source->source_funcs->closure_marshal;
++#endif
+       if (marshal)
+ 	g_closure_set_marshal (closure, marshal);
+       else if (source->source_funcs == &g_idle_funcs ||
+diff --git a/gobject/gtype.c b/gobject/gtype.c
+index dfb01ee..3d4d381 100644
+--- a/gobject/gtype.c
++++ b/gobject/gtype.c
+@@ -3476,7 +3476,8 @@ g_type_from_name (const gchar *name)
+   g_return_val_if_fail (name != NULL, 0);
+   
+   G_READ_LOCK (&type_rw_lock);
+-  type = (GType) g_hash_table_lookup (static_type_nodes_ht, name);
++  gpointer result = g_hash_table_lookup (static_type_nodes_ht, name);
++  type = (GType) result;
+   G_READ_UNLOCK (&type_rw_lock);
+   
+   return type;
+diff --git a/gobject/gtype.h b/gobject/gtype.h
+index 3305a59..ac9adf2 100644
+--- a/gobject/gtype.h
++++ b/gobject/gtype.h
+@@ -2160,10 +2160,10 @@ static void     type_name##_class_intern_init (gpointer klass, \
+ \
+ static void     type_name##_init              (TypeName        *self); \
+ static void     type_name##_class_init        (TypeName##Class *klass); \
+-static void     type_name##_init_adapter      (TypeName        *self, \
++static void     type_name##_init_adapter      (GTypeInstance   *self, \
+                                                gpointer         class_data) \
+ { \
+-  type_name##_init (self); \
++  type_name##_init ((TypeName *) self); \
+ } \
+ static GType    type_name##_get_type_once     (void); \
+ static gpointer type_name##_parent_class = NULL; \
+@@ -2202,9 +2202,9 @@ type_name##_get_type_once (void) \
+         g_type_register_static_simple (TYPE_PARENT, \
+                                        g_intern_static_string (#TypeName), \
+                                        sizeof (TypeName##Class), \
+-                                       (GClassInitFunc) type_name##_class_intern_init, \
++                                       type_name##_class_intern_init, \
+                                        sizeof (TypeName), \
+-                                       (GInstanceInitFunc) type_name##_init_adapter, \
++                                       type_name##_init_adapter, \
+                                        (GTypeFlags) flags); \
+     { /* custom code follows */
+ #define _G_DEFINE_TYPE_EXTENDED_END()	\
+@@ -2225,10 +2225,10 @@ type_name##_get_type_once (void) \
+ #define _G_DEFINE_INTERFACE_EXTENDED_BEGIN(TypeName, type_name, TYPE_PREREQ) \
+ \
+ static void     type_name##_default_init         (TypeName##Interface *klass); \
+-static void     type_name##_default_init_adapter (TypeName##Interface *klass, \
++static void     type_name##_default_init_adapter (gpointer             klass, \
+                                                   gpointer             class_data) \
+ { \
+-  type_name##_default_init (klass); \
++  type_name##_default_init ((TypeName##Interface *) klass); \
+ } \
+ \
+ GType \
+@@ -2241,7 +2241,7 @@ type_name##_get_type (void) \
+         g_type_register_static_simple (G_TYPE_INTERFACE, \
+                                        g_intern_static_string (#TypeName), \
+                                        sizeof (TypeName##Interface), \
+-                                       (GClassInitFunc) type_name##_default_init_adapter, \
++                                       type_name##_default_init_adapter, \
+                                        0, \
+                                        (GInstanceInitFunc)NULL, \
+                                        (GTypeFlags) 0); \
+diff --git a/gobject/gtypemodule.c b/gobject/gtypemodule.c
+index ce6b02d..36c1ef6 100644
+--- a/gobject/gtypemodule.c
++++ b/gobject/gtypemodule.c
+@@ -129,16 +129,27 @@ g_type_module_class_init (GTypeModuleClass *class)
+   gobject_class->dispose = g_type_module_dispose;
+   gobject_class->finalize = g_type_module_finalize;
+ }
++static void
++g_type_module_class_init_adapter (gpointer class, gpointer dummy)
++{
++  g_type_module_class_init ((GTypeModuleClass*) class);
++}
+ 
+ static void
+ g_type_module_iface_init (GTypePluginClass *iface,
+                           gpointer          iface_data)
+ {
+   iface->use_plugin = g_type_module_use_plugin;
+-  iface->unuse_plugin = (void (*) (GTypePlugin *))g_type_module_unuse;
++  iface->unuse_plugin = g_type_module_unuse_adapter;
+   iface->complete_type_info = g_type_module_complete_type_info;
+   iface->complete_interface_info = g_type_module_complete_interface_info;
+ }
++static void
++g_type_module_iface_init_adapter (gpointer iface,
++                                  gpointer iface_data)
++{
++  g_type_module_iface_init ((GTypePluginClass*) iface, iface_data);
++}
+ 
+ GType
+ g_type_module_get_type (void)
+@@ -151,7 +162,7 @@ g_type_module_get_type (void)
+         sizeof (GTypeModuleClass),
+         NULL,           /* base_init */
+         NULL,           /* base_finalize */
+-        (GClassInitFunc) g_type_module_class_init,
++        g_type_module_class_init_adapter,
+         NULL,           /* class_finalize */
+         NULL,           /* class_data */
+         sizeof (GTypeModule),
+@@ -160,7 +171,7 @@ g_type_module_get_type (void)
+         NULL,           /* value_table */
+       };
+       const GInterfaceInfo iface_info = {
+-        (GInterfaceInitFunc) g_type_module_iface_init,
++        g_type_module_iface_init_adapter,
+         NULL,               /* interface_finalize */
+         NULL,               /* interface_data */
+       };
+@@ -308,6 +319,11 @@ g_type_module_unuse (GTypeModule *module)
+ 	}
+     }
+ }
++void
++g_type_module_unuse_adapter (GTypePlugin *module)
++{
++  g_type_module_unuse ((GTypeModule*) module);
++}
+ 	
+ static void
+ g_type_module_use_plugin (GTypePlugin *plugin)
+diff --git a/gobject/gtypemodule.h b/gobject/gtypemodule.h
+index f3096a9..0bbe024 100644
+--- a/gobject/gtypemodule.h
++++ b/gobject/gtypemodule.h
+@@ -274,6 +274,7 @@ GOBJECT_AVAILABLE_IN_ALL
+ gboolean g_type_module_use            (GTypeModule          *module);
+ GOBJECT_AVAILABLE_IN_ALL
+ void     g_type_module_unuse          (GTypeModule          *module);
++void     g_type_module_unuse_adapter  (GTypePlugin          *module);
+ GOBJECT_AVAILABLE_IN_ALL
+ void     g_type_module_set_name       (GTypeModule          *module,
+                                        const gchar          *name);
+diff --git a/gobject/gvalue.c b/gobject/gvalue.c
+index 10885da..1afc143 100644
+--- a/gobject/gvalue.c
++++ b/gobject/gvalue.c
+@@ -313,6 +313,11 @@ g_value_unset (GValue *value)
+     value_table->value_free (value);
+   memset (value, 0, sizeof (*value));
+ }
++void
++g_value_unset_adapter (gpointer value)
++{
++  g_value_unset ((GValue*) value);
++}
+ 
+ /**
+  * g_value_fits_pointer:
+diff --git a/gobject/gvalue.h b/gobject/gvalue.h
+index 2ac5ca1..b5b9e36 100644
+--- a/gobject/gvalue.h
++++ b/gobject/gvalue.h
+@@ -141,6 +141,7 @@ GOBJECT_AVAILABLE_IN_ALL
+ GValue*         g_value_reset   	(GValue       *value);
+ GOBJECT_AVAILABLE_IN_ALL
+ void            g_value_unset   	(GValue       *value);
++void            g_value_unset_adapter   (gpointer      value);
+ GOBJECT_AVAILABLE_IN_ALL
+ void		g_value_set_instance	(GValue	      *value,
+ 					 gpointer      instance);
