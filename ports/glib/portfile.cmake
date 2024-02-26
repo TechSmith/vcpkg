@@ -17,6 +17,7 @@ if(VCPKG_TARGET_IS_EMSCRIPTEN)
            remove-most-of-gio.patch
            reduce-glib-size.patch
            remove-func-ptr-casts.patch
+           force-ctor-order.patch
    )
 else()
    vcpkg_extract_source_archive(SOURCE_PATH

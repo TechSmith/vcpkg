@@ -1,0 +1,39 @@
+diff --git a/glib/gconstructor.h b/glib/gconstructor.h
+index 29509e4..f8575b1 100644
+--- a/glib/gconstructor.h
++++ b/glib/gconstructor.h
+@@ -51,7 +51,7 @@
+ 
+ #define G_HAS_CONSTRUCTORS 1
+ 
+-#define G_DEFINE_CONSTRUCTOR(_func) static void __attribute__((constructor)) _func (void);
++#define G_DEFINE_CONSTRUCTOR(_func, priority) static void __attribute__((constructor(priority))) _func (void);
+ #define G_DEFINE_DESTRUCTOR(_func) static void __attribute__((destructor)) _func (void);
+ 
+ #elif defined (_MSC_VER) && (_MSC_VER >= 1500)
+diff --git a/glib/glib-init.c b/glib/glib-init.c
+index c513f51..345670e 100644
+--- a/glib/glib-init.c
++++ b/glib/glib-init.c
+@@ -481,7 +481,7 @@ glib_init_dtor (void)
+ #ifdef G_DEFINE_CONSTRUCTOR_NEEDS_PRAGMA
+ #pragma G_DEFINE_CONSTRUCTOR_PRAGMA_ARGS(glib_init_ctor)
+ #endif
+-G_DEFINE_CONSTRUCTOR(glib_init_ctor)
++G_DEFINE_CONSTRUCTOR(glib_init_ctor, 100)
+ 
+ static void
+ glib_init_ctor (void)
+diff --git a/gobject/gtype.c b/gobject/gtype.c
+index 3d4d381..6177770 100644
+--- a/gobject/gtype.c
++++ b/gobject/gtype.c
+@@ -4674,7 +4674,7 @@ gobject_init_ctor (void)
+ #pragma G_DEFINE_CONSTRUCTOR_PRAGMA_ARGS(gobject_init_ctor)
+ #endif
+ 
+-G_DEFINE_CONSTRUCTOR (gobject_init_ctor)
++G_DEFINE_CONSTRUCTOR (gobject_init_ctor, 105)
+ 
+ static void
+ gobject_init_ctor (void)
