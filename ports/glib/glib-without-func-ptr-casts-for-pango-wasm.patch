@@ -1,5 +1,1231 @@
+diff --git a/gio/gio.h b/gio/gio.h
+index c17657db0..2fd1d73c1 100644
+--- a/gio/gio.h
++++ b/gio/gio.h
+@@ -25,6 +25,11 @@
+ 
+ #define __GIO_GIO_H_INSIDE__
+ 
++#ifdef __EMSCRIPTEN__
++#include <glib-object.h>
++#include <gio/glistmodel.h>
++#else
++
+ #include <gio/giotypes.h>
+ 
+ #include <gio/gaction.h>
+@@ -183,4 +188,5 @@
+ 
+ #undef __GIO_GIO_H_INSIDE__
+ 
++#endif // __EMSCRIPTEN__
+ #endif /* __G_IO_H__ */
+diff --git a/gio/gioenumtypes.h.template b/gio/gioenumtypes.h.template
+index c75a3b459..4f734f626 100644
+--- a/gio/gioenumtypes.h.template
++++ b/gio/gioenumtypes.h.template
+@@ -24,7 +24,10 @@
+ #define __GIO_ENUM_TYPES_H__
+ 
+ #include <glib-object.h>
++
++#ifndef __EMSCRIPTEN__
+ #include <gio/gio-visibility.h>
++#endif
+ 
+ G_BEGIN_DECLS
+ /*** END file-header ***/
+diff --git a/gio/glistmodel.c b/gio/glistmodel.c
+index 3f9b85e91..2a9f32123 100644
+--- a/gio/glistmodel.c
++++ b/gio/glistmodel.c
+@@ -24,6 +24,8 @@
+ 
+ #include "config.h"
+ 
++#include "gio.h"
++// #include "../glib.h"
+ #include "glistmodel.h"
+ #include "glibintl.h"
+ #include "gmarshal-internal.h"
+@@ -136,8 +138,8 @@ G_DEFINE_INTERFACE (GListModel, g_list_model, G_TYPE_OBJECT)
+  * using the following functions.
+  **/
+ 
+-static guint g_list_model_changed_signal;
+-
++// static guint g_list_model_changed_signal;
++//
+ static void
+ g_list_model_default_init (GListModelInterface *iface)
+ {
+@@ -157,19 +159,20 @@ g_list_model_default_init (GListModelInterface *iface)
+    *
+    * Since: 2.44
+    */
+-  g_list_model_changed_signal = g_signal_new (I_("items-changed"),
+-                                              G_TYPE_LIST_MODEL,
+-                                              G_SIGNAL_RUN_LAST,
+-                                              0,
+-                                              NULL, NULL,
+-                                              _g_cclosure_marshal_VOID__UINT_UINT_UINT,
+-                                              G_TYPE_NONE,
+-                                              3, G_TYPE_UINT, G_TYPE_UINT, G_TYPE_UINT);
+-  g_signal_set_va_marshaller (g_list_model_changed_signal,
+-                              G_TYPE_FROM_INTERFACE (iface),
+-                              _g_cclosure_marshal_VOID__UINT_UINT_UINTv);
++  // g_list_model_changed_signal = g_signal_new (I_("items-changed"),
++  //                                             G_TYPE_LIST_MODEL,
++  //                                             G_SIGNAL_RUN_LAST,
++  //                                             0,
++  //                                             NULL, NULL,
++  //                                             _g_cclosure_marshal_VOID__UINT_UINT_UINT,
++  //                                             G_TYPE_NONE,
++  //                                             3, G_TYPE_UINT, G_TYPE_UINT, G_TYPE_UINT);
++  // g_signal_set_va_marshaller (g_list_model_changed_signal,
++  //                             G_TYPE_FROM_INTERFACE (iface),
++  //                             _g_cclosure_marshal_VOID__UINT_UINT_UINTv);
+ }
+ 
++
+ /**
+  * g_list_model_get_item_type:
+  * @list: a #GListModel
+@@ -318,5 +321,6 @@ g_list_model_items_changed (GListModel *list,
+ {
+   g_return_if_fail (G_IS_LIST_MODEL (list));
+ 
+-  g_signal_emit (list, g_list_model_changed_signal, 0, position, removed, added);
++  //printf("__FUNCTION__ called. Unfortunately, this is not implemented in this Emscripten build.\n");
++  //g_signal_emit (list, g_list_model_changed_signal, 0, position, removed, added);
+ }
+diff --git a/gio/glistmodel.h b/gio/glistmodel.h
+index a96e3cea0..4ae0e47b6 100644
+--- a/gio/glistmodel.h
++++ b/gio/glistmodel.h
+@@ -29,12 +29,12 @@
+ #error "Only <gio/gio.h> can be included directly."
+ #endif
+ 
+-#include <gio/giotypes.h>
++//#include <glib/glib.h>
+ 
+ G_BEGIN_DECLS
+ 
+ #define G_TYPE_LIST_MODEL g_list_model_get_type ()
+-GIO_AVAILABLE_IN_2_44
++//GIO_AVAILABLE_IN_2_44
+ G_DECLARE_INTERFACE(GListModel, g_list_model, G, LIST_MODEL, GObject)
+ 
+ struct _GListModelInterface
+@@ -49,21 +49,21 @@ struct _GListModelInterface
+                                  guint       position);
+ };
+ 
+-GIO_AVAILABLE_IN_2_44
++//GIO_AVAILABLE_IN_2_44
+ GType                   g_list_model_get_item_type                      (GListModel *list);
+ 
+-GIO_AVAILABLE_IN_2_44
++//GIO_AVAILABLE_IN_2_44
+ guint                   g_list_model_get_n_items                        (GListModel *list);
+ 
+-GIO_AVAILABLE_IN_2_44
++//GIO_AVAILABLE_IN_2_44
+ gpointer                g_list_model_get_item                           (GListModel *list,
+                                                                          guint       position);
+ 
+-GIO_AVAILABLE_IN_2_44
++//GIO_AVAILABLE_IN_2_44
+ GObject *               g_list_model_get_object                         (GListModel *list,
+                                                                          guint       position);
+ 
+-GIO_AVAILABLE_IN_2_44
++//GIO_AVAILABLE_IN_2_44
+ void                    g_list_model_items_changed                      (GListModel *list,
+                                                                          guint       position,
+                                                                          guint       removed,
+diff --git a/gio/meson.build b/gio/meson.build
+index f1812424d..9acdd661a 100644
+--- a/gio/meson.build
++++ b/gio/meson.build
+@@ -1,7 +1,6 @@
+ gio_c_args = [
+   '-DG_LOG_DOMAIN="GLib-GIO"',
+   '-DGIO_LAUNCH_DESKTOP="@0@"'.format(glib_prefix / multiarch_libexecdir / 'gio-launch-desktop'),
+-  '-DGIO_MODULE_DIR="@0@"'.format(glib_giomodulesdir),
+   '-DLOCALSTATEDIR="@0@"'.format(glib_localstatedir),
+ ]
+ 
+@@ -9,14 +8,23 @@ gio_c_args_internal = [
+   '-DGIO_COMPILATION',
+ ]
+ 
+-# Install empty glib_giomodulesdir
+-install_emptydir(glib_giomodulesdir)
++if host_system  != 'emscripten'
++  gio_c_args += [
++    '-DGIO_MODULE_DIR="@0@"'.format(glib_giomodulesdir),
++  ] 
++
++  # Install empty glib_giomodulesdir
++  install_emptydir(glib_giomodulesdir)
++endif
+ 
+ gio_includedir = glib_includedir / 'gio'
+ 
+-gnetworking_h_conf = configuration_data()
+ 
+-gnetworking_h_nameser_compat_include = ''
++if host_system  != 'emscripten'
++  gnetworking_h_conf = configuration_data()
++
++  gnetworking_h_nameser_compat_include = ''
++endif
+ 
+ if host_system not in ['windows', 'android']
+   # Don't check for C_IN on Android since it does not define it in public
+@@ -30,7 +38,7 @@ if host_system not in ['windows', 'android']
+                       #include <arpa/nameser_compat.h>
+                       int qclass = C_IN;''',
+                    name : 'arpa/nameser_compat.h needed for C_IN')
+-      gnetworking_h_nameser_compat_include = '#include <arpa/nameser_compat.h>'
++    # gnetworking_h_nameser_compat_include = '#include <arpa/nameser_compat.h>'
+     else
+       error('Could not find required includes for ARPA C_IN')
+     endif
+@@ -168,177 +176,180 @@ if host_system == 'android'
+   endif
+ endif
+ 
+-gnetworking_h_conf.set('NAMESER_COMPAT_INCLUDE', gnetworking_h_nameser_compat_include)
+-
+-gnetworking_h = configure_file(input : 'gnetworking.h.in',
+-                               output : 'gnetworking.h',
+-                               install_dir : gio_includedir,
+-                               configuration : gnetworking_h_conf)
+-
+-gdbus_headers = files(
+-  'gdbusauthobserver.h',
+-  'gcredentials.h',
+-  'gdbusutils.h',
+-  'gdbuserror.h',
+-  'gdbusaddress.h',
+-  'gdbusconnection.h',
+-  'gdbusmessage.h',
+-  'gdbusnameowning.h',
+-  'gdbusnamewatching.h',
+-  'gdbusproxy.h',
+-  'gdbusintrospection.h',
+-  'gdbusmethodinvocation.h',
+-  'gdbusserver.h',
+-  'gdbusinterface.h',
+-  'gdbusinterfaceskeleton.h',
+-  'gdbusobject.h',
+-  'gdbusobjectskeleton.h',
+-  'gdbusobjectproxy.h',
+-  'gdbusobjectmanager.h',
+-  'gdbusobjectmanagerclient.h',
+-  'gdbusobjectmanagerserver.h',
+-  'gtestdbus.h',
+-)
+-
+-gdbus_sources = files(
+-  'gdbusutils.c',
+-  'gdbusaddress.c',
+-  'gdbusauthobserver.c',
+-  'gdbusauth.c',
+-  'gdbusauthmechanism.c',
+-  'gdbusauthmechanismanon.c',
+-  'gdbusauthmechanismexternal.c',
+-  'gdbusauthmechanismsha1.c',
+-  'gdbuserror.c',
+-  'gdbusconnection.c',
+-  'gdbusmessage.c',
+-  'gdbusnameowning.c',
+-  'gdbusnamewatching.c',
+-  'gdbusproxy.c',
+-  'gdbusprivate.c',
+-  'gdbusintrospection.c',
+-  'gdbusmethodinvocation.c',
+-  'gdbusserver.c',
+-  'gdbusinterface.c',
+-  'gdbusinterfaceskeleton.c',
+-  'gdbusobject.c',
+-  'gdbusobjectskeleton.c',
+-  'gdbusobjectproxy.c',
+-  'gdbusobjectmanager.c',
+-  'gdbusobjectmanagerclient.c',
+-  'gdbusobjectmanagerserver.c',
+-  'gtestdbus.c',
+-)
+-
+-# Generate gdbus-codegen
+-subdir('gdbus-2.0/codegen')
+-
+-# Generate xdp-dbus.{c,h}
+-xdp_dbus_generated = custom_target('xdp-dbus',
+-    input : ['org.freedesktop.portal.Documents.xml',
+-             'org.freedesktop.portal.OpenURI.xml',
+-             'org.freedesktop.portal.ProxyResolver.xml',
+-             'org.freedesktop.portal.Trash.xml'],
+-    output : ['xdp-dbus.h', 'xdp-dbus.c'],
+-    depend_files : gdbus_codegen_built_files,
+-    command : [python, gdbus_codegen,
+-               '--interface-prefix', 'org.freedesktop.portal.',
+-               '--output-directory', '@OUTDIR@',
+-               '--generate-c-code', 'xdp-dbus',
+-               '--c-namespace', 'GXdp',
+-               '@INPUT@'])
+-
+-# Generate gdbus-generated.{c,h}
+-gdbus_daemon_generated = custom_target('gdbus-daemon-generated',
+-    input : ['dbus-daemon.xml'],
+-    output : ['gdbus-daemon-generated.h', 'gdbus-daemon-generated.c'],
+-    depend_files : gdbus_codegen_built_files,
+-    command : [python, gdbus_codegen,
+-               '--interface-prefix', 'org.',
+-               '--output-directory', '@OUTDIR@',
+-               '--generate-c-code', 'gdbus-daemon-generated',
+-               '--c-namespace', '_G', '@INPUT@'])
+-
+-settings_headers = files(
+-  'gsettingsbackend.h',
+-  'gsettingsschema.h',
+-  'gsettings.h',
+-)
+-
+-settings_sources = files(
+-  'gdelayedsettingsbackend.c',
+-  'gkeyfilesettingsbackend.c',
+-  'gmemorysettingsbackend.c',
+-  'gnullsettingsbackend.c',
+-  'gsettingsbackend.c',
+-  'gsettingsschema.c',
+-  'gsettings-mapping.c',
+-  'gsettings.c',
+-)
+ 
+-if host_system == 'windows'
+-  settings_sources += files('gregistrysettingsbackend.c')
+-endif
+-
+-application_headers = files(
+-  'gapplication.h',
+-  'gapplicationcommandline.h',
+-
+-  'gactiongroup.h',
+-  'gactionmap.h',
+-  'gsimpleactiongroup.h',
+-  'gremoteactiongroup.h',
+-  'gactiongroupexporter.h',
+-  'gdbusactiongroup.h',
+-  'gaction.h',
+-  'gpropertyaction.h',
+-  'gsimpleaction.h',
+-
+-  'gmenumodel.h',
+-  'gmenu.h',
+-  'gmenuexporter.h',
+-  'gdbusmenumodel.h',
+-  'gnotification.h',
+-)
+-
+-application_sources = files(
+-  'gapplication.c',
+-  'gapplicationcommandline.c',
+-  'gapplicationimpl-dbus.c',
+-
+-  'gactiongroup.c',
+-  'gactionmap.c',
+-  'gsimpleactiongroup.c',
+-  'gremoteactiongroup.c',
+-  'gactiongroupexporter.c',
+-  'gdbusactiongroup.c',
+-  'gaction.c',
+-  'gpropertyaction.c',
+-  'gsimpleaction.c',
+-
+-  'gmenumodel.c',
+-  'gmenu.c',
+-  'gmenuexporter.c',
+-  'gdbusmenumodel.c',
+-  'gnotification.c',
+-  'gnotificationbackend.c',
+-)
+-
+-local_sources = files(
+-  'ghttpproxy.c',
+-  'glocalfile.c',
+-  'glocalfileenumerator.c',
+-  'glocalfileinfo.c',
+-  'glocalfileinputstream.c',
+-  'glocalfilemonitor.c',
+-  'glocalfileoutputstream.c',
+-  'glocalfileiostream.c',
+-  'glocalvfs.c',
+-  'gsocks4proxy.c',
+-  'gsocks4aproxy.c',
+-  'gsocks5proxy.c',
+-  'thumbnail-verify.c',
+-)
++if host_system  != 'emscripten'
++  gnetworking_h_conf.set('NAMESER_COMPAT_INCLUDE', gnetworking_h_nameser_compat_include)
++ 
++  gnetworking_h = configure_file(input : 'gnetworking.h.in',
++                                 output : 'gnetworking.h',
++                                 install_dir : gio_includedir,
++                                 configuration : gnetworking_h_conf)
++ 
++  gdbus_headers = files(
++    'gdbusauthobserver.h',
++    'gcredentials.h',
++    'gdbusutils.h',
++    'gdbuserror.h',
++    'gdbusaddress.h',
++    'gdbusconnection.h',
++    'gdbusmessage.h',
++    'gdbusnameowning.h',
++    'gdbusnamewatching.h',
++    'gdbusproxy.h',
++    'gdbusintrospection.h',
++    'gdbusmethodinvocation.h',
++    'gdbusserver.h',
++    'gdbusinterface.h',
++    'gdbusinterfaceskeleton.h',
++    'gdbusobject.h',
++    'gdbusobjectskeleton.h',
++    'gdbusobjectproxy.h',
++    'gdbusobjectmanager.h',
++    'gdbusobjectmanagerclient.h',
++    'gdbusobjectmanagerserver.h',
++    'gtestdbus.h',
++  )
++ 
++  gdbus_sources = files(
++    'gdbusutils.c',
++    'gdbusaddress.c',
++    'gdbusauthobserver.c',
++    'gdbusauth.c',
++    'gdbusauthmechanism.c',
++    'gdbusauthmechanismanon.c',
++    'gdbusauthmechanismexternal.c',
++    'gdbusauthmechanismsha1.c',
++    'gdbuserror.c',
++    'gdbusconnection.c',
++    'gdbusmessage.c',
++    'gdbusnameowning.c',
++    'gdbusnamewatching.c',
++    'gdbusproxy.c',
++    'gdbusprivate.c',
++    'gdbusintrospection.c',
++    'gdbusmethodinvocation.c',
++    'gdbusserver.c',
++    'gdbusinterface.c',
++    'gdbusinterfaceskeleton.c',
++    'gdbusobject.c',
++    'gdbusobjectskeleton.c',
++    'gdbusobjectproxy.c',
++    'gdbusobjectmanager.c',
++    'gdbusobjectmanagerclient.c',
++    'gdbusobjectmanagerserver.c',
++    'gtestdbus.c',
++  )
++ 
++  # Generate gdbus-codegen
++  subdir('gdbus-2.0/codegen')
++ 
++  # Generate xdp-dbus.{c,h}
++  xdp_dbus_generated = custom_target('xdp-dbus',
++      input : ['org.freedesktop.portal.Documents.xml',
++               'org.freedesktop.portal.OpenURI.xml',
++               'org.freedesktop.portal.ProxyResolver.xml',
++               'org.freedesktop.portal.Trash.xml'],
++      output : ['xdp-dbus.h', 'xdp-dbus.c'],
++      depend_files : gdbus_codegen_built_files,
++      command : [python, gdbus_codegen,
++                 '--interface-prefix', 'org.freedesktop.portal.',
++                 '--output-directory', '@OUTDIR@',
++                 '--generate-c-code', 'xdp-dbus',
++                 '--c-namespace', 'GXdp',
++                 '@INPUT@'])
++ 
++  # Generate gdbus-generated.{c,h}
++  gdbus_daemon_generated = custom_target('gdbus-daemon-generated',
++      input : ['dbus-daemon.xml'],
++      output : ['gdbus-daemon-generated.h', 'gdbus-daemon-generated.c'],
++      depend_files : gdbus_codegen_built_files,
++      command : [python, gdbus_codegen,
++                 '--interface-prefix', 'org.',
++                 '--output-directory', '@OUTDIR@',
++                 '--generate-c-code', 'gdbus-daemon-generated',
++                 '--c-namespace', '_G', '@INPUT@'])
++ 
++  settings_headers = files(
++    'gsettingsbackend.h',
++    'gsettingsschema.h',
++    'gsettings.h',
++  )
++ 
++  settings_sources = files(
++    'gdelayedsettingsbackend.c',
++    'gkeyfilesettingsbackend.c',
++    'gmemorysettingsbackend.c',
++    'gnullsettingsbackend.c',
++    'gsettingsbackend.c',
++    'gsettingsschema.c',
++    'gsettings-mapping.c',
++    'gsettings.c',
++  )
++ 
++  if host_system == 'windows'
++    settings_sources += files('gregistrysettingsbackend.c')
++  endif
++ 
++  application_headers = files(
++    'gapplication.h',
++    'gapplicationcommandline.h',
++ 
++    'gactiongroup.h',
++    'gactionmap.h',
++    'gsimpleactiongroup.h',
++    'gremoteactiongroup.h',
++    'gactiongroupexporter.h',
++    'gdbusactiongroup.h',
++    'gaction.h',
++    'gpropertyaction.h',
++    'gsimpleaction.h',
++ 
++    'gmenumodel.h',
++    'gmenu.h',
++    'gmenuexporter.h',
++    'gdbusmenumodel.h',
++    'gnotification.h',
++  )
++ 
++  application_sources = files(
++    'gapplication.c',
++    'gapplicationcommandline.c',
++    'gapplicationimpl-dbus.c',
++ 
++    'gactiongroup.c',
++    'gactionmap.c',
++    'gsimpleactiongroup.c',
++    'gremoteactiongroup.c',
++    'gactiongroupexporter.c',
++    'gdbusactiongroup.c',
++    'gaction.c',
++    'gpropertyaction.c',
++    'gsimpleaction.c',
++ 
++    'gmenumodel.c',
++    'gmenu.c',
++    'gmenuexporter.c',
++    'gdbusmenumodel.c',
++    'gnotification.c',
++    'gnotificationbackend.c',
++  )
++ 
++  local_sources = files(
++    'ghttpproxy.c',
++    'glocalfile.c',
++    'glocalfileenumerator.c',
++    'glocalfileinfo.c',
++    'glocalfileinputstream.c',
++    'glocalfilemonitor.c',
++    'glocalfileoutputstream.c',
++    'glocalfileiostream.c',
++    'glocalvfs.c',
++    'gsocks4proxy.c',
++    'gsocks4aproxy.c',
++    'gsocks5proxy.c',
++    'thumbnail-verify.c',
++  )
++endif # host system not emscripten
+ 
+ platform_deps = []
+ internal_deps = []
+@@ -348,11 +359,13 @@ portal_sources = []
+ unix_sources = []
+ win32_sources = []
+ 
+-# This is also used by tests/gdbus-daemon, so use files() to include the path
+-gdbus_daemon_sources = [
+-  files('gdbusdaemon.c'),
+-  gdbus_daemon_generated,
+-]
++if host_system  != 'emscripten'
++  # This is also used by tests/gdbus-daemon, so use files() to include the path
++  gdbus_daemon_sources = [
++    files('gdbusdaemon.c'),
++    gdbus_daemon_generated,
++  ]
++endif
+ 
+ if host_system not in ['windows', 'emscripten']
+   unix_sources = files(
+@@ -460,150 +473,153 @@ elif host_system == 'windows'
+ endif
+ 
+ gio_sources = files(
+-  'gappinfo.c',
+-  'gasynchelper.c',
+-  'gasyncinitable.c',
+-  'gasyncresult.c',
+-  'gbufferedinputstream.c',
+-  'gbufferedoutputstream.c',
+-  'gbytesicon.c',
+-  'gcancellable.c',
+-  'gcharsetconverter.c',
+-  'gcontextspecificgroup.c',
+-  'gconverter.c',
+-  'gconverterinputstream.c',
+-  'gconverteroutputstream.c',
+-  'gcredentials.c',
+-  'gdatagrambased.c',
+-  'gdatainputstream.c',
+-  'gdataoutputstream.c',
+-  'gdebugcontroller.c',
+-  'gdebugcontrollerdbus.c',
+-  'gdrive.c',
+-  'gdummyfile.c',
+-  'gdummyproxyresolver.c',
+-  'gdummytlsbackend.c',
+-  'gemblem.c',
+-  'gemblemedicon.c',
+-  'gfile.c',
+-  'gfileattribute.c',
+-  'gfileenumerator.c',
+-  'gfileicon.c',
+-  'gfileinfo.c',
+-  'gfileinputstream.c',
+-  'gfilemonitor.c',
+-  'gfilenamecompleter.c',
+-  'gfileoutputstream.c',
+-  'gfileiostream.c',
+-  'gfilterinputstream.c',
+-  'gfilteroutputstream.c',
+-  'gicon.c',
+-  'ginetaddress.c',
+-  'ginetaddressmask.c',
+-  'ginetsocketaddress.c',
+-  'ginitable.c',
+-  'ginputstream.c',
+-  'gioerror.c',
+-  'giomodule.c',
+-  'giomodule-priv.c',
+-  'gioscheduler.c',
+-  'giostream.c',
+-  'gloadableicon.c',
+-  'gmarshal-internal.c',
+-  'gmount.c',
+-  'gmemorymonitor.c',
+-  'gmemorymonitordbus.c',
+-  'gmemoryinputstream.c',
+-  'gmemoryoutputstream.c',
+-  'gmountoperation.c',
+-  'gnativesocketaddress.c',
+-  'gnativevolumemonitor.c',
+-  'gnetworkaddress.c',
+-  'gnetworking.c',
+-  'gnetworkmonitor.c',
+-  'gnetworkmonitorbase.c',
+-  'gnetworkservice.c',
+-  'goutputstream.c',
+-  'gpermission.c',
+-  'gpollableinputstream.c',
+-  'gpollableoutputstream.c',
+-  'gpollableutils.c',
+-  'gpollfilemonitor.c',
+-  'gpowerprofilemonitor.c',
+-  'gpowerprofilemonitordbus.c',
+-  'gproxy.c',
+-  'gproxyaddress.c',
+-  'gproxyaddressenumerator.c',
+-  'gproxyresolver.c',
+-  'gresolver.c',
+-  'gresource.c',
+-  'gresourcefile.c',
+-  'gseekable.c',
+-  'gsimpleasyncresult.c',
+-  'gsimpleiostream.c',
+-  'gsimplepermission.c',
+-  'gsimpleproxyresolver.c',
+-  'gsocket.c',
+-  'gsocketaddress.c',
+-  'gsocketaddressenumerator.c',
+-  'gsocketclient.c',
+-  'gsocketconnectable.c',
+-  'gsocketconnection.c',
+-  'gsocketcontrolmessage.c',
+-  'gsocketinputstream.c',
+-  'gsocketlistener.c',
+-  'gsocketoutputstream.c',
+-  'gsocketservice.c',
+-  'gsrvtarget.c',
+-  'gsubprocesslauncher.c',
+-  'gsubprocess.c',
+-  'gtask.c',
+-  'gtcpconnection.c',
+-  'gtcpwrapperconnection.c',
+-  'gthemedicon.c',
+-  'gthreadedsocketservice.c',
+-  'gthreadedresolver.c',
+-  'gthreadedresolver.h',
+-  'gtlsbackend.c',
+-  'gtlscertificate.c',
+-  'gtlsclientconnection.c',
+-  'gtlsconnection.c',
+-  'gtlsdatabase.c',
+-  'gtlsfiledatabase.c',
+-  'gtlsinteraction.c',
+-  'gtlspassword.c',
+-  'gtlsserverconnection.c',
+-  'gdtlsconnection.c',
+-  'gdtlsclientconnection.c',
+-  'gdtlsserverconnection.c',
+-  'gunionvolumemonitor.c',
+-  'gunixconnection.c',
+-  'gunixfdlist.c',
+-  'gunixcredentialsmessage.c',
+-  'gunixsocketaddress.c',
+-  'gvfs.c',
+-  'gvolume.c',
+-  'gvolumemonitor.c',
+-  'gzlibcompressor.c',
+-  'gzlibdecompressor.c',
++  # 'gappinfo.c',
++  # 'gasynchelper.c',
++  # 'gasyncinitable.c',
++  # 'gasyncresult.c',
++  # 'gbufferedinputstream.c',
++  # 'gbufferedoutputstream.c',
++  # 'gbytesicon.c',
++  # 'gcancellable.c',
++  # 'gcharsetconverter.c',
++  # 'gcontextspecificgroup.c',
++  # 'gconverter.c',
++  # 'gconverterinputstream.c',
++  # 'gconverteroutputstream.c',
++  # 'gcredentials.c',
++  # 'gdatagrambased.c',
++  # 'gdatainputstream.c',
++  # 'gdataoutputstream.c',
++  # 'gdebugcontroller.c',
++  # 'gdebugcontrollerdbus.c',
++  # 'gdrive.c',
++  # 'gdummyfile.c',
++  # 'gdummyproxyresolver.c',
++  # 'gdummytlsbackend.c',
++  # 'gemblem.c',
++  # 'gemblemedicon.c',
++  # 'gfile.c',
++  # 'gfileattribute.c',
++  # 'gfileenumerator.c',
++  # 'gfileicon.c',
++  # 'gfileinfo.c',
++  # 'gfileinputstream.c',
++  # 'gfilemonitor.c',
++  # 'gfilenamecompleter.c',
++  # 'gfileoutputstream.c',
++  # 'gfileiostream.c',
++  # 'gfilterinputstream.c',
++  # 'gfilteroutputstream.c',
++  # 'gicon.c',
++  # 'ginetaddress.c',
++  # 'ginetaddressmask.c',
++  # 'ginetsocketaddress.c',
++  # 'ginitable.c',
++  # 'ginputstream.c',
++  # 'gioerror.c',
++  # 'giomodule.c',
++  # 'giomodule-priv.c',
++  # 'gioscheduler.c',
++  # 'giostream.c',
++  # 'gloadableicon.c',
++  # 'gmarshal-internal.c',
++  # 'gmount.c',
++  # 'gmemorymonitor.c',
++  # 'gmemorymonitordbus.c',
++  # 'gmemoryinputstream.c',
++  # 'gmemoryoutputstream.c',
++  # 'gmountoperation.c',
++  # 'gnativesocketaddress.c',
++  # 'gnativevolumemonitor.c',
++  # 'gnetworkaddress.c',
++  # 'gnetworking.c',
++  # 'gnetworkmonitor.c',
++  # 'gnetworkmonitorbase.c',
++  # 'gnetworkservice.c',
++  # 'goutputstream.c',
++  # 'gpermission.c',
++  # 'gpollableinputstream.c',
++  # 'gpollableoutputstream.c',
++  # 'gpollableutils.c',
++  # 'gpollfilemonitor.c',
++  # 'gpowerprofilemonitor.c',
++  # 'gpowerprofilemonitordbus.c',
++  # 'gproxy.c',
++  # 'gproxyaddress.c',
++  # 'gproxyaddressenumerator.c',
++  # 'gproxyresolver.c',
++  # 'gresolver.c',
++  # 'gresource.c',
++  # 'gresourcefile.c',
++  # 'gseekable.c',
++  # 'gsimpleasyncresult.c',
++  # 'gsimpleiostream.c',
++  # 'gsimplepermission.c',
++  # 'gsimpleproxyresolver.c',
++  # 'gsocket.c',
++  # 'gsocketaddress.c',
++  # 'gsocketaddressenumerator.c',
++  # 'gsocketclient.c',
++  # 'gsocketconnectable.c',
++  # 'gsocketconnection.c',
++  # 'gsocketcontrolmessage.c',
++  # 'gsocketinputstream.c',
++  # 'gsocketlistener.c',
++  # 'gsocketoutputstream.c',
++  # 'gsocketservice.c',
++  # 'gsrvtarget.c',
++  # 'gsubprocesslauncher.c',
++  # 'gsubprocess.c',
++  # 'gtask.c',
++  # 'gtcpconnection.c',
++  # 'gtcpwrapperconnection.c',
++  # 'gthemedicon.c',
++  # 'gthreadedsocketservice.c',
++  # 'gthreadedresolver.c',
++  # 'gthreadedresolver.h',
++  # 'gtlsbackend.c',
++  # 'gtlscertificate.c',
++  # 'gtlsclientconnection.c',
++  # 'gtlsconnection.c',
++  # 'gtlsdatabase.c',
++  # 'gtlsfiledatabase.c',
++  # 'gtlsinteraction.c',
++  # 'gtlspassword.c',
++  # 'gtlsserverconnection.c',
++  # 'gdtlsconnection.c',
++  # 'gdtlsclientconnection.c',
++  # 'gdtlsserverconnection.c',
++  # 'gunionvolumemonitor.c',
++  # 'gunixconnection.c',
++  # 'gunixfdlist.c',
++  # 'gunixcredentialsmessage.c',
++  # 'gunixsocketaddress.c',
++  # 'gvfs.c',
++  # 'gvolume.c',
++  # 'gvolumemonitor.c',
++  # 'gzlibcompressor.c',
++  # 'gzlibdecompressor.c',
+   'glistmodel.c',
+-  'gliststore.c',
++  # 'gliststore.c',
+ )
+ 
+ if glib_build_shared
+   gio_sources += files ('../glib/gtrace.c')
+ endif
+ 
+-gio_sources += appinfo_sources
+-gio_sources += contenttype_sources
+-gio_sources += gdbus_daemon_sources
+-gio_sources += unix_sources
+-gio_sources += win32_sources
+-gio_sources += application_sources
+-gio_sources += settings_sources
+-gio_sources += gdbus_sources
+ gio_sources += portal_sources
+-gio_sources += local_sources
++
++if host_system  != 'emscripten'
++  gio_sources += appinfo_sources
++  gio_sources += contenttype_sources
++  gio_sources += gdbus_daemon_sources
++  gio_sources += unix_sources
++  gio_sources += win32_sources
++  gio_sources += application_sources
++  gio_sources += settings_sources
++  gio_sources += gdbus_sources
++  gio_sources += local_sources
++endif
+ 
+ MISSING_STUFF = '''
+ # This is read by gobject-introspection/misc/ and gtk-doc
+@@ -618,137 +634,142 @@ gio-2.0.lib: libgio-2.0.la gio.def
+ '''
+ 
+ gio_headers = files(
+-  'gappinfo.h',
+-  'gasyncinitable.h',
+-  'gasyncresult.h',
+-  'gbufferedinputstream.h',
+-  'gbufferedoutputstream.h',
+-  'gbytesicon.h',
+-  'gcancellable.h',
+-  'gcontenttype.h',
+-  'gcharsetconverter.h',
+-  'gconverter.h',
+-  'gconverterinputstream.h',
+-  'gconverteroutputstream.h',
+-  'gdatagrambased.h',
+-  'gdatainputstream.h',
+-  'gdataoutputstream.h',
+-  'gdebugcontroller.h',
+-  'gdebugcontrollerdbus.h',
+-  'gdrive.h',
+-  'gemblem.h',
+-  'gemblemedicon.h',
+-  'gfile.h',
+-  'gfileattribute.h',
+-  'gfileenumerator.h',
+-  'gfileicon.h',
+-  'gfileinfo.h',
+-  'gfileinputstream.h',
+-  'gfilemonitor.h',
+-  'gfilenamecompleter.h',
+-  'gfileoutputstream.h',
+-  'gfileiostream.h',
+-  'gfilterinputstream.h',
+-  'gfilteroutputstream.h',
+-  'gicon.h',
+-  'ginetaddress.h',
+-  'ginetaddressmask.h',
+-  'ginetsocketaddress.h',
+-  'ginitable.h',
+-  'ginputstream.h',
++  # 'gappinfo.h',
++  # 'gasyncinitable.h',
++  # 'gasyncresult.h',
++  # 'gbufferedinputstream.h',
++  # 'gbufferedoutputstream.h',
++  # 'gbytesicon.h',
++  # 'gcancellable.h',
++  # 'gcontenttype.h',
++  # 'gcharsetconverter.h',
++  # 'gconverter.h',
++  # 'gconverterinputstream.h',
++  # 'gconverteroutputstream.h',
++  # 'gdatagrambased.h',
++  # 'gdatainputstream.h',
++  # 'gdataoutputstream.h',
++  # 'gdebugcontroller.h',
++  # 'gdebugcontrollerdbus.h',
++  # 'gdrive.h',
++  # 'gemblem.h',
++  # 'gemblemedicon.h',
++  # 'gfile.h',
++  # 'gfileattribute.h',
++  # 'gfileenumerator.h',
++  # 'gfileicon.h',
++  # 'gfileinfo.h',
++  # 'gfileinputstream.h',
++  # 'gfilemonitor.h',
++  # 'gfilenamecompleter.h',
++  # 'gfileoutputstream.h',
++  # 'gfileiostream.h',
++  # 'gfilterinputstream.h',
++  # 'gfilteroutputstream.h',
++  # 'gicon.h',
++  # 'ginetaddress.h',
++  # 'ginetaddressmask.h',
++  # 'ginetsocketaddress.h',
++  # 'ginitable.h',
++  # 'ginputstream.h',
+   'gio.h',
+-  'gio-autocleanups.h',
+-  'gioenums.h',
+-  'gioerror.h',
+-  'giomodule.h',
+-  'gioscheduler.h',
+-  'giostream.h',
+-  'giotypes.h',
+-  'gloadableicon.h',
+-  'gmount.h',
+-  'gmemoryinputstream.h',
+-  'gmemorymonitor.h',
+-  'gmemoryoutputstream.h',
+-  'gmountoperation.h',
+-  'gnativesocketaddress.h',
+-  'gnativevolumemonitor.h',
+-  'gnetworkaddress.h',
+-  'gnetworkmonitor.h',
+-  'gnetworkservice.h',
+-  'goutputstream.h',
+-  'gpermission.h',
+-  'gpollableinputstream.h',
+-  'gpollableoutputstream.h',
+-  'gpollableutils.h',
+-  'gpowerprofilemonitor.h',
+-  'gproxy.h',
+-  'gproxyaddress.h',
+-  'gproxyaddressenumerator.h',
+-  'gproxyresolver.h',
+-  'gresolver.h',
+-  'gresource.h',
+-  'gseekable.h',
+-  'gsimpleasyncresult.h',
+-  'gsimpleiostream.h',
+-  'gsimplepermission.h',
+-  'gsimpleproxyresolver.h',
+-  'gsocket.h',
+-  'gsocketaddress.h',
+-  'gsocketaddressenumerator.h',
+-  'gsocketclient.h',
+-  'gsocketconnectable.h',
+-  'gsocketconnection.h',
+-  'gsocketcontrolmessage.h',
+-  'gsocketlistener.h',
+-  'gsocketservice.h',
+-  'gsrvtarget.h',
+-  'gsubprocess.h',
+-  'gsubprocesslauncher.h',
+-  'gtask.h',
+-  'gtcpconnection.h',
+-  'gtcpwrapperconnection.h',
+-  'gthemedicon.h',
+-  'gthreadedsocketservice.h',
+-  'gtlsbackend.h',
+-  'gtlscertificate.h',
+-  'gtlsclientconnection.h',
+-  'gtlsconnection.h',
+-  'gtlsdatabase.h',
+-  'gtlsfiledatabase.h',
+-  'gtlsinteraction.h',
+-  'gtlspassword.h',
+-  'gtlsserverconnection.h',
+-  'gdtlsconnection.h',
+-  'gdtlsclientconnection.h',
+-  'gdtlsserverconnection.h',
+-  'gunixconnection.h',
+-  'gunixcredentialsmessage.h',
+-  'gunixfdlist.h',
+-  'gunixsocketaddress.h',
+-  'gvfs.h',
+-  'gvolume.h',
+-  'gvolumemonitor.h',
+-  'gzlibcompressor.h',
+-  'gzlibdecompressor.h',
++  # 'gio-autocleanups.h',
++  # 'gioenums.h',
++  # 'gioerror.h',
++  # 'giomodule.h',
++  # 'gioscheduler.h',
++  # 'giostream.h',
++  # 'giotypes.h',
++  # 'gloadableicon.h',
++  # 'gmount.h',
++  # 'gmemoryinputstream.h',
++  # 'gmemorymonitor.h',
++  # 'gmemoryoutputstream.h',
++  # 'gmountoperation.h',
++  # 'gnativesocketaddress.h',
++  # 'gnativevolumemonitor.h',
++  # 'gnetworkaddress.h',
++  # 'gnetworkmonitor.h',
++  # 'gnetworkservice.h',
++  # 'goutputstream.h',
++  # 'gpermission.h',
++  # 'gpollableinputstream.h',
++  # 'gpollableoutputstream.h',
++  # 'gpollableutils.h',
++  # 'gpowerprofilemonitor.h',
++  # 'gproxy.h',
++  # 'gproxyaddress.h',
++  # 'gproxyaddressenumerator.h',
++  # 'gproxyresolver.h',
++  # 'gresolver.h',
++  # 'gresource.h',
++  # 'gseekable.h',
++  # 'gsimpleasyncresult.h',
++  # 'gsimpleiostream.h',
++  # 'gsimplepermission.h',
++  # 'gsimpleproxyresolver.h',
++  # 'gsocket.h',
++  # 'gsocketaddress.h',
++  # 'gsocketaddressenumerator.h',
++  # 'gsocketclient.h',
++  # 'gsocketconnectable.h',
++  # 'gsocketconnection.h',
++  # 'gsocketcontrolmessage.h',
++  # 'gsocketlistener.h',
++  # 'gsocketservice.h',
++  # 'gsrvtarget.h',
++  # 'gsubprocess.h',
++  # 'gsubprocesslauncher.h',
++  # 'gtask.h',
++  # 'gtcpconnection.h',
++  # 'gtcpwrapperconnection.h',
++  # 'gthemedicon.h',
++  # 'gthreadedsocketservice.h',
++  # 'gtlsbackend.h',
++  # 'gtlscertificate.h',
++  # 'gtlsclientconnection.h',
++  # 'gtlsconnection.h',
++  # 'gtlsdatabase.h',
++  # 'gtlsfiledatabase.h',
++  # 'gtlsinteraction.h',
++  # 'gtlspassword.h',
++  # 'gtlsserverconnection.h',
++  # 'gdtlsconnection.h',
++  # 'gdtlsclientconnection.h',
++  # 'gdtlsserverconnection.h',
++  # 'gunixconnection.h',
++  # 'gunixcredentialsmessage.h',
++  # 'gunixfdlist.h',
++  # 'gunixsocketaddress.h',
++  # 'gvfs.h',
++  # 'gvolume.h',
++  # 'gvolumemonitor.h',
++  # 'gzlibcompressor.h',
++  # 'gzlibdecompressor.h',
+   'glistmodel.h',
+-  'gliststore.h',
++  # 'gliststore.h',
+ )
+ 
+-gio_visibility_h = custom_target(
+-  output: 'gio-visibility.h',
+-  command: [gen_visibility_macros, meson.project_version(), 'visibility-macros', 'GIO', '@OUTPUT@'],
+-  install: true,
+-  install_dir: gio_includedir,
+-  # FIXME: Not needed with Meson >= 0.64.0
+-  install_tag: 'devel',
+-)
+-gio_sources += gio_visibility_h
++if host_system  != 'emscripten'
++  gio_visibility_h = custom_target(
++    output: 'gio-visibility.h',
++    command: [gen_visibility_macros, meson.project_version(), 'visibility-macros', 'GIO', '@OUTPUT@'],
++    install: true,
++    install_dir: gio_includedir,
++    # FIXME: Not needed with Meson >= 0.64.0
++    install_tag: 'devel',
++  )
++  gio_sources += gio_visibility_h
++
++  gio_headers += application_headers
++  gio_headers += settings_headers
++  gio_headers += gdbus_headers
++endif
+ 
+-gio_headers += application_headers
+-gio_headers += settings_headers
+-gio_headers += gdbus_headers
+ install_headers(gio_headers, install_dir : gio_includedir)
+ 
++# TODO Handle gnetworking and visibility in the sections below.
++#
+ # We can't use gnome.mkenums() because the GNOME module looks for glib-mkenums
+ # in PATH, which means you can't bootstrap glib with its own glib-mkenums.
+ gioenumtypes_h = custom_target('gioenumtypes_h',
+@@ -761,7 +782,7 @@ gioenumtypes_h = custom_target('gioenumtypes_h',
+   install_tag: 'devel',
+   command : [python, glib_mkenums,
+              '--template', files('gioenumtypes.h.template'),
+-             '@INPUT@', gnetworking_h])
++             '@INPUT@'])#, gnetworking_h])
+ 
+ gioenumtypes_c = custom_target('gioenumtypes_c',
+   output : 'gioenumtypes.c',
+@@ -770,9 +791,9 @@ gioenumtypes_c = custom_target('gioenumtypes_c',
+   depends : [gioenumtypes_h],
+   command : [python, glib_mkenums,
+              '--template', files('gioenumtypes.c.template'),
+-             '@INPUT@', gnetworking_h])
++             '@INPUT@'])#, gnetworking_h])
+ 
+-gioenumtypes_dep = declare_dependency(sources : [gioenumtypes_h, glib_enumtypes_h, gio_visibility_h])
++gioenumtypes_dep = declare_dependency(sources : [gioenumtypes_h, glib_enumtypes_h])#, gio_visibility_h])
+ 
+ # inotify
+ if glib_conf.has('HAVE_SYS_INOTIFY_H') and have_func_inotify_init1
+@@ -823,8 +844,12 @@ else
+   gio_dtrace_hdr = []
+ endif
+ 
++# TODO Handle gnetworking and gvdb_dep
+ libgio = library('gio-2.0',
+-  gioenumtypes_h, gioenumtypes_c, gnetworking_h, gio_sources,
++  gioenumtypes_h,
++  gioenumtypes_c,
++  # gnetworking_h,
++  gio_sources,
+   gio_dtrace_hdr, gio_dtrace_obj,
+   version : library_version,
+   soversion : soversion,
+@@ -836,7 +861,7 @@ libgio = library('gio-2.0',
+   dependencies : [libz_dep, libdl_dep, libmount_dep, libglib_dep,
+                   libgobject_dep, libgmodule_dep, selinux_dep, xattr_dep,
+                   platform_deps, network_libs, libsysprof_capture_dep,
+-                  gioenumtypes_dep, gvdb_dep],
++                  gioenumtypes_dep], #, gvdb_dep],
+   c_args : [gio_c_args, gio_c_args_internal],
+   objc_args : [gio_c_args, gio_c_args_internal],
+   gnu_symbol_visibility : 'hidden',
+@@ -844,11 +869,11 @@ libgio = library('gio-2.0',
+   link_args : [noseh_link_args, glib_link_flags],
+ )
+ 
+-if get_option('gio_module_dir') != ''
+-  pkgconfig_giomodulesdir = join_paths('${prefix}', get_option('gio_module_dir'))
+-else
+-  pkgconfig_giomodulesdir = join_paths('${libdir}', 'gio', 'modules')
+-endif
++# if get_option('gio_module_dir') != ''
++#   pkgconfig_giomodulesdir = join_paths('${prefix}', get_option('gio_module_dir'))
++# else
++#   pkgconfig_giomodulesdir = join_paths('${libdir}', 'gio', 'modules')
++# endif
+ 
+ schemas_subdir = join_paths('glib-2.0', 'schemas')
+ 
+@@ -857,7 +882,6 @@ libgio_dep = declare_dependency(link_with : libgio,
+   include_directories : [gioinc],
+   variables : [
+     'schemasdir=' + join_paths(glib_datadir, schemas_subdir),
+-    'giomoduledir=' + glib_giomodulesdir,
+   ],
+ )
+ 
+@@ -866,15 +890,15 @@ pkg.generate(libgio,
+   variables : ['datadir=' + join_paths('${prefix}', get_option('datadir')),
+                'schemasdir=' + join_paths('${datadir}', schemas_subdir),
+                'bindir=' + join_paths('${prefix}', get_option('bindir')),
+-               'giomoduledir=' + pkgconfig_giomodulesdir,
++               #'giomoduledir=' + pkgconfig_giomodulesdir,
+                'gio=' + join_paths('${bindir}', 'gio'),
+-               'gio_querymodules=@0@'.format(pkgconfig_multiarch_bindir / 'gio-querymodules'),
++               #'gio_querymodules=@0@'.format(pkgconfig_multiarch_bindir / 'gio-querymodules'),
+                'glib_compile_schemas=@0@'.format(pkgconfig_multiarch_bindir / 'glib-compile-schemas'),
+                'glib_compile_resources=' + join_paths('${bindir}', 'glib-compile-resources'),
+                'gdbus=' + join_paths('${bindir}', 'gdbus'),
+-               'gdbus_codegen=' + join_paths('${bindir}', 'gdbus-codegen'),
+-               'gresource=' + join_paths('${bindir}', 'gresource'),
+-               'gsettings=' + join_paths('${bindir}', 'gsettings')],
++               # 'gdbus_codegen=' + join_paths('${bindir}', 'gdbus-codegen'),
++               'gresource=' + join_paths('${bindir}', 'gresource')],
++               # 'gsettings=' + join_paths('${bindir}', 'gsettings')],
+   version : glib_version,
+   install_dir : glib_pkgconfigreldir,
+   filebase : 'gio-2.0',
+@@ -951,9 +975,9 @@ if enable_systemtap
+   )
+ endif
+ 
+-if build_tests
+-    subdir('tests')
+-endif
++# if host_system not in ['emscripten']
++#   subdir('tests')
++# endif
+ 
+ # The following is an example for building internal marshallers that are used
+ # by GIO. We cannot guarantee glib-genmarshal availability while building GLib
 diff --git a/glib/garray.c b/glib/garray.c
-index deef2ca..7375fcc 100644
+index deef2ca8a..7375fcc93 100644
 --- a/glib/garray.c
 +++ b/glib/garray.c
 @@ -506,6 +506,11 @@ g_array_unref (GArray *array)
@@ -57,7 +1283,7 @@ index deef2ca..7375fcc 100644
  /**
   * g_byte_array_append:
 diff --git a/glib/garray.h b/glib/garray.h
-index 5dc32b2..ace6139 100644
+index 5dc32b2a7..ace6139bc 100644
 --- a/glib/garray.h
 +++ b/glib/garray.h
 @@ -98,6 +98,7 @@ GLIB_AVAILABLE_IN_ALL
@@ -94,7 +1320,7 @@ index 5dc32b2..ace6139 100644
  GByteArray* g_byte_array_append            (GByteArray       *array,
  					    const guint8     *data,
 diff --git a/glib/gbookmarkfile.c b/glib/gbookmarkfile.c
-index 3988e36..f494cbc 100644
+index 3988e3653..f494cbc88 100644
 --- a/glib/gbookmarkfile.c
 +++ b/glib/gbookmarkfile.c
 @@ -51,6 +51,11 @@
@@ -232,7 +1458,7 @@ index 3988e36..f494cbc 100644
  /**
   * g_bookmark_file_load_from_data:
 diff --git a/glib/gbookmarkfile.h b/glib/gbookmarkfile.h
-index f753420..d47e692 100644
+index f753420ed..d47e692ed 100644
 --- a/glib/gbookmarkfile.h
 +++ b/glib/gbookmarkfile.h
 @@ -83,6 +83,7 @@ GLIB_AVAILABLE_IN_ALL
@@ -244,7 +1470,7 @@ index f753420..d47e692 100644
  GLIB_AVAILABLE_IN_2_76
  GBookmarkFile *g_bookmark_file_copy                (GBookmarkFile  *bookmark);
 diff --git a/glib/gbytes.c b/glib/gbytes.c
-index e4d2697..1698b98 100644
+index e4d269710..1698b98c6 100644
 --- a/glib/gbytes.c
 +++ b/glib/gbytes.c
 @@ -247,7 +247,7 @@ g_bytes_new_from_bytes (GBytes  *bytes,
@@ -276,7 +1502,7 @@ index e4d2697..1698b98 100644
 \ No newline at end of file
 +}
 diff --git a/glib/gbytes.h b/glib/gbytes.h
-index d934989..70f4825 100644
+index d93498943..70f48259c 100644
 --- a/glib/gbytes.h
 +++ b/glib/gbytes.h
 @@ -67,6 +67,7 @@ GLIB_AVAILABLE_IN_ALL
@@ -288,7 +1514,7 @@ index d934989..70f4825 100644
  
  GLIB_AVAILABLE_IN_ALL
 diff --git a/glib/gcharset.c b/glib/gcharset.c
-index 82cd0a7..cd263ea 100644
+index 82cd0a7b8..cd263eaab 100644
 --- a/glib/gcharset.c
 +++ b/glib/gcharset.c
 @@ -795,7 +795,7 @@ g_get_language_names (void)
@@ -301,7 +1527,7 @@ index 82cd0a7..cd263ea 100644
    const gchar *languages;
    GLanguageNamesCache *name_cache;
 diff --git a/glib/gchecksum.c b/glib/gchecksum.c
-index fea7803..f5aa14a 100644
+index fea7803cd..f5aa14a09 100644
 --- a/glib/gchecksum.c
 +++ b/glib/gchecksum.c
 @@ -1569,6 +1569,11 @@ g_checksum_free (GChecksum *checksum)
@@ -317,7 +1543,7 @@ index fea7803..f5aa14a 100644
  /**
   * g_checksum_update:
 diff --git a/glib/gchecksum.h b/glib/gchecksum.h
-index e5c54e7..e035ed1 100644
+index e5c54e7c7..e035ed17b 100644
 --- a/glib/gchecksum.h
 +++ b/glib/gchecksum.h
 @@ -77,6 +77,7 @@ GLIB_AVAILABLE_IN_ALL
@@ -328,8 +1554,21 @@ index e5c54e7..e035ed1 100644
  GLIB_AVAILABLE_IN_ALL
  void                  g_checksum_update             (GChecksum       *checksum,
                                                       const guchar    *data,
+diff --git a/glib/gconstructor.h b/glib/gconstructor.h
+index 29509e4a4..f8575b143 100644
+--- a/glib/gconstructor.h
++++ b/glib/gconstructor.h
+@@ -51,7 +51,7 @@
+ 
+ #define G_HAS_CONSTRUCTORS 1
+ 
+-#define G_DEFINE_CONSTRUCTOR(_func) static void __attribute__((constructor)) _func (void);
++#define G_DEFINE_CONSTRUCTOR(_func, priority) static void __attribute__((constructor(priority))) _func (void);
+ #define G_DEFINE_DESTRUCTOR(_func) static void __attribute__((destructor)) _func (void);
+ 
+ #elif defined (_MSC_VER) && (_MSC_VER >= 1500)
 diff --git a/glib/gdate.c b/glib/gdate.c
-index 85892ec..e91ef6f 100644
+index 85892ec9b..e91ef6f18 100644
 --- a/glib/gdate.c
 +++ b/glib/gdate.c
 @@ -365,6 +365,11 @@ g_date_free (GDate *date)
@@ -345,7 +1584,7 @@ index 85892ec..e91ef6f 100644
  /**
   * g_date_copy:
 diff --git a/glib/gdate.h b/glib/gdate.h
-index 5ef21cb..c8c9d30 100644
+index 5ef21cbf9..c8c9d30ae 100644
 --- a/glib/gdate.h
 +++ b/glib/gdate.h
 @@ -129,6 +129,7 @@ GLIB_AVAILABLE_IN_ALL
@@ -357,7 +1596,7 @@ index 5ef21cb..c8c9d30 100644
  GDate*       g_date_copy                  (const GDate *date);
  
 diff --git a/glib/gdatetime.c b/glib/gdatetime.c
-index 2640e3b..1b310c9 100644
+index 2640e3b24..1b310c93d 100644
 --- a/glib/gdatetime.c
 +++ b/glib/gdatetime.c
 @@ -726,6 +726,11 @@ g_date_time_unref (GDateTime *datetime)
@@ -373,7 +1612,7 @@ index 2640e3b..1b310c9 100644
  /* Internal state transformers {{{1 */
  /*< internal >
 diff --git a/glib/gdatetime.h b/glib/gdatetime.h
-index 4312433..24c958a 100644
+index 4312433bd..24c958a47 100644
 --- a/glib/gdatetime.h
 +++ b/glib/gdatetime.h
 @@ -99,6 +99,7 @@ typedef struct _GDateTime GDateTime;
@@ -385,7 +1624,7 @@ index 4312433..24c958a 100644
  GDateTime *             g_date_time_ref                                 (GDateTime      *datetime);
  
 diff --git a/glib/gdir.c b/glib/gdir.c
-index c9283de..bbabf69 100644
+index c9283dea4..bbabf6941 100644
 --- a/glib/gdir.c
 +++ b/glib/gdir.c
 @@ -305,6 +305,11 @@ g_dir_close (GDir *dir)
@@ -401,7 +1640,7 @@ index c9283de..bbabf69 100644
  #ifdef G_OS_WIN32
  
 diff --git a/glib/gdir.h b/glib/gdir.h
-index 0d3ee82..b8da6de 100644
+index 0d3ee82b3..b8da6de96 100644
 --- a/glib/gdir.h
 +++ b/glib/gdir.h
 @@ -48,6 +48,7 @@ GLIB_AVAILABLE_IN_ALL
@@ -413,7 +1652,7 @@ index 0d3ee82..b8da6de 100644
  G_END_DECLS
  
 diff --git a/glib/gerror.c b/glib/gerror.c
-index 7ac85fc..d577d9d 100644
+index 7ac85fc66..d577d9d05 100644
 --- a/glib/gerror.c
 +++ b/glib/gerror.c
 @@ -872,6 +872,11 @@ g_error_free (GError *error)
@@ -429,7 +1668,7 @@ index 7ac85fc..d577d9d 100644
  /**
   * g_error_copy:
 diff --git a/glib/gerror.h b/glib/gerror.h
-index 1aebfbe..22b597b 100644
+index 1aebfbeb9..22b597bda 100644
 --- a/glib/gerror.h
 +++ b/glib/gerror.h
 @@ -206,6 +206,7 @@ GError*  g_error_new_valist    (GQuark         domain,
@@ -441,7 +1680,7 @@ index 1aebfbe..22b597b 100644
  GError*  g_error_copy          (const GError  *error);
  
 diff --git a/glib/ghash.c b/glib/ghash.c
-index 132e3ac..5184582 100644
+index 132e3ac5e..518458272 100644
 --- a/glib/ghash.c
 +++ b/glib/ghash.c
 @@ -1496,6 +1496,11 @@ g_hash_table_unref (GHashTable *hash_table)
@@ -457,7 +1696,7 @@ index 132e3ac..5184582 100644
  /**
   * g_hash_table_destroy:
 diff --git a/glib/ghash.h b/glib/ghash.h
-index 3eb8f3b..f9a5dc6 100644
+index 3eb8f3be0..f9a5dc6a3 100644
 --- a/glib/ghash.h
 +++ b/glib/ghash.h
 @@ -160,6 +160,7 @@ void        g_hash_table_iter_steal        (GHashTableIter *iter);
@@ -469,7 +1708,7 @@ index 3eb8f3b..f9a5dc6 100644
  
  #define g_hash_table_freeze(hash_table) ((void)0) GLIB_DEPRECATED_MACRO_IN_2_26
 diff --git a/glib/giochannel.c b/glib/giochannel.c
-index 7572c47..3eb879a 100644
+index 7572c47a2..3eb879a50 100644
 --- a/glib/giochannel.c
 +++ b/glib/giochannel.c
 @@ -257,6 +257,11 @@ g_io_channel_unref (GIOChannel *channel)
@@ -519,7 +1758,7 @@ index 7572c47..3eb879a 100644
  /**
   * g_io_channel_get_buffer_condition:
 diff --git a/glib/giochannel.h b/glib/giochannel.h
-index 913019c..9593f2e 100644
+index 913019cd4..9593f2ec2 100644
 --- a/glib/giochannel.h
 +++ b/glib/giochannel.h
 @@ -164,6 +164,7 @@ GLIB_AVAILABLE_IN_ALL
@@ -540,48 +1779,35 @@ index 913019c..9593f2e 100644
  				 GDestroyNotify   notify);
  GLIB_AVAILABLE_IN_ALL
 diff --git a/glib/giounix.c b/glib/giounix.c
-index 9d9492b..d2ebc39 100644
+index 9d9492b28..e7e6deaf7 100644
 --- a/glib/giounix.c
 +++ b/glib/giounix.c
-@@ -158,20 +158,22 @@ g_io_unix_dispatch (GSource     *source,
+@@ -158,6 +158,10 @@ g_io_unix_dispatch (GSource     *source,
  		    gpointer     user_data)
  
  {
--  GIOFunc func = (GIOFunc)callback;
--  GIOUnixWatch *watch = (GIOUnixWatch *)source;
--  GIOCondition buffer_condition = g_io_channel_get_buffer_condition (watch->channel);
--
--  if (!func)
--    {
--      g_warning ("IO watch dispatched without callback. "
--		 "You must call g_source_connect().");
--      return FALSE;
--    }
--  
--  return (*func) (watch->channel,
--		  (watch->pollfd.revents | buffer_condition) & watch->condition,
--		  user_data);
++#ifdef __EMSCRIPTEN__
 +  fprintf(stderr, "%s (%d): I commented this out - ARL\n", __FUNCTION__, __LINE__);
 +  return FALSE;
-+  // GIOFunc func = (GIOFunc)callback;
-+  // GIOUnixWatch *watch = (GIOUnixWatch *)source;
-+  // GIOCondition buffer_condition = g_io_channel_get_buffer_condition (watch->channel);
-+  //
-+  // if (!func)
-+  //   {
-+  //     g_warning ("IO watch dispatched without callback. "
-+		//  "You must call g_source_connect().");
-+  //     return FALSE;
-+  //   }
-+  // 
-+  // return (*func) (watch->channel,
-+		//   (watch->pollfd.revents | buffer_condition) & watch->condition,
-+		//   user_data);
++#else
+   GIOFunc func = (GIOFunc)callback;
+   GIOUnixWatch *watch = (GIOUnixWatch *)source;
+   GIOCondition buffer_condition = g_io_channel_get_buffer_condition (watch->channel);
+@@ -168,10 +172,11 @@ g_io_unix_dispatch (GSource     *source,
+ 		 "You must call g_source_connect().");
+       return FALSE;
+     }
+-  
++
+   return (*func) (watch->channel,
+ 		  (watch->pollfd.revents | buffer_condition) & watch->condition,
+ 		  user_data);
++#endif
  }
  
  static void 
 diff --git a/glib/gkeyfile.c b/glib/gkeyfile.c
-index 9a4821b..613d09f 100644
+index 9a4821bc5..613d09f28 100644
 --- a/glib/gkeyfile.c
 +++ b/glib/gkeyfile.c
 @@ -584,6 +584,7 @@ static gboolean              g_key_file_is_group_name          (const gchar *nam
@@ -655,7 +1881,7 @@ index 9a4821b..613d09f 100644
   * or more letters making up the group name followed by ']'.
   */
 diff --git a/glib/gkeyfile.h b/glib/gkeyfile.h
-index 9d026d6..0e38072 100644
+index 9d026d681..0e380729d 100644
 --- a/glib/gkeyfile.h
 +++ b/glib/gkeyfile.h
 @@ -62,6 +62,7 @@ GLIB_AVAILABLE_IN_ALL
@@ -667,7 +1893,7 @@ index 9d026d6..0e38072 100644
  void      g_key_file_free                   (GKeyFile             *key_file);
  GLIB_AVAILABLE_IN_ALL
 diff --git a/glib/glib-autocleanups.h b/glib/glib-autocleanups.h
-index 7393efe..014e9bb 100644
+index 1edbe2b13..014e9bb94 100644
 --- a/glib/glib-autocleanups.h
 +++ b/glib/glib-autocleanups.h
 @@ -36,6 +36,11 @@ g_autoptr_cleanup_gstring_free (GString *string)
@@ -682,15 +1908,11 @@ index 7393efe..014e9bb 100644
  
  /* Ignore deprecations in case we refer to a type which was added in a more
   * recent GLib version than the user’s #GLIB_VERSION_MAX_ALLOWED definition. */
-@@ -45,67 +50,68 @@ G_GNUC_BEGIN_IGNORE_DEPRECATIONS
+@@ -44,62 +49,69 @@ G_GNUC_BEGIN_IGNORE_DEPRECATIONS
+ /* If adding a cleanup here, please also add a test case to
   * glib/tests/autoptr.c
   */
- 
--G_DEFINE_AUTOPTR_CLEANUP_FUNC(GList, g_list_free)
--G_DEFINE_AUTOPTR_CLEANUP_FUNC(GThread, g_thread_unref)
--G_DEFINE_AUTOPTR_CLEANUP_FUNC(GBytes, g_bytes_unref)
--G_DEFINE_AUTOPTR_CLEANUP_FUNC(GHashTable, g_hash_table_unref)
--G_DEFINE_AUTOPTR_CLEANUP_FUNC(GSList, g_slist_free)
++
 +G_DEFINE_AUTOPTR_CLEANUP_FUNC(GList, g_list_free_adapter)
 +G_DEFINE_AUTOPTR_CLEANUP_FUNC(GThread, g_thread_unref_adapter)
 +G_DEFINE_AUTOPTR_CLEANUP_FUNC(GBytes, g_bytes_unref_adapter)
@@ -736,22 +1958,25 @@ index 7393efe..014e9bb 100644
 +G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(GMutex, g_mutex_clear)
 +G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(GQueue, g_queue_clear)
 +G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(GCond, g_cond_clear)
- 
- #ifndef __EMSCRIPTEN__
- 
++
++#ifndef __EMSCRIPTEN__
++
 +G_DEFINE_AUTOPTR_CLEANUP_FUNC(GRefString, g_ref_string_release_adapter)
 +G_DEFINE_AUTOPTR_CLEANUP_FUNC(GStrvBuilder, g_strv_builder_unref)
 +G_DEFINE_AUTOPTR_CLEANUP_FUNC(GStringChunk, g_string_chunk_free)
  G_DEFINE_AUTOPTR_CLEANUP_FUNC(GAsyncQueue, g_async_queue_unref)
 -G_DEFINE_AUTOPTR_CLEANUP_FUNC(GBookmarkFile, g_bookmark_file_free)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GBytes, g_bytes_unref)
 -G_DEFINE_AUTOPTR_CLEANUP_FUNC(GChecksum, g_checksum_free)
 -G_DEFINE_AUTOPTR_CLEANUP_FUNC(GDateTime, g_date_time_unref)
 -G_DEFINE_AUTOPTR_CLEANUP_FUNC(GDate, g_date_free)
 -G_DEFINE_AUTOPTR_CLEANUP_FUNC(GDir, g_dir_close)
 -G_DEFINE_AUTOPTR_CLEANUP_FUNC(GError, g_error_free)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GHashTable, g_hash_table_unref)
  G_DEFINE_AUTOPTR_CLEANUP_FUNC(GHmac, g_hmac_unref)
 -G_DEFINE_AUTOPTR_CLEANUP_FUNC(GIOChannel, g_io_channel_unref)
 -G_DEFINE_AUTOPTR_CLEANUP_FUNC(GKeyFile, g_key_file_unref)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GList, g_list_free)
 -G_DEFINE_AUTOPTR_CLEANUP_FUNC(GArray, g_array_unref)
 -G_DEFINE_AUTOPTR_CLEANUP_FUNC(GPtrArray, g_ptr_array_unref)
 -G_DEFINE_AUTOPTR_CLEANUP_FUNC(GByteArray, g_byte_array_unref)
@@ -770,9 +1995,11 @@ index 7393efe..014e9bb 100644
 -G_DEFINE_AUTOPTR_CLEANUP_FUNC(GRand, g_rand_free)
 -G_DEFINE_AUTOPTR_CLEANUP_FUNC(GScanner, g_scanner_destroy)
  G_DEFINE_AUTOPTR_CLEANUP_FUNC(GSequence, g_sequence_free)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GSList, g_slist_free)
 -G_DEFINE_AUTOPTR_CLEANUP_FUNC(GString, g_autoptr_cleanup_gstring_free)
 -G_DEFINE_AUTOPTR_CLEANUP_FUNC(GStringChunk, g_string_chunk_free)
 -G_DEFINE_AUTOPTR_CLEANUP_FUNC(GStrvBuilder, g_strv_builder_unref)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GThread, g_thread_unref)
 -G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(GMutex, g_mutex_clear)
 -G_DEFINE_AUTOPTR_CLEANUP_FUNC(GMutexLocker, g_mutex_locker_free)
 -G_DEFINE_AUTOPTR_CLEANUP_FUNC(GRecMutexLocker, g_rec_mutex_locker_free)
@@ -796,12 +2023,74 @@ index 7393efe..014e9bb 100644
  G_DEFINE_AUTOPTR_CLEANUP_FUNC (GPathBuf, g_path_buf_free)
  G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC (GPathBuf, g_path_buf_clear)
  
--#endif /* __EMSCRIPTEN__ */
 +#endif /* !__EMSCRIPTEN__ */
- 
++
  G_GNUC_END_IGNORE_DEPRECATIONS
+diff --git a/glib/glib-init.c b/glib/glib-init.c
+index c513f5190..345670eee 100644
+--- a/glib/glib-init.c
++++ b/glib/glib-init.c
+@@ -481,7 +481,7 @@ glib_init_dtor (void)
+ #ifdef G_DEFINE_CONSTRUCTOR_NEEDS_PRAGMA
+ #pragma G_DEFINE_CONSTRUCTOR_PRAGMA_ARGS(glib_init_ctor)
+ #endif
+-G_DEFINE_CONSTRUCTOR(glib_init_ctor)
++G_DEFINE_CONSTRUCTOR(glib_init_ctor, 100)
+ 
+ static void
+ glib_init_ctor (void)
+diff --git a/glib/glib-private.c b/glib/glib-private.c
+index 6b2205f86..4d4c9a644 100644
+--- a/glib/glib-private.c
++++ b/glib/glib-private.c
+@@ -39,11 +39,13 @@ GLibPrivateVTable *
+ glib__private__ (void)
+ {
+   static GLibPrivateVTable table = {
++#ifndef __EMSCRIPTEN__
+     g_wakeup_new,
+     g_wakeup_free,
+     g_wakeup_get_pollfd,
+     g_wakeup_signal,
+     g_wakeup_acknowledge,
++#endif
+ 
+     g_get_worker_context,
+ 
+diff --git a/glib/glib-private.h b/glib/glib-private.h
+index 85bea5ffe..1cdd59996 100644
+--- a/glib/glib-private.h
++++ b/glib/glib-private.h
+@@ -21,7 +21,11 @@
+ #define __GLIB_PRIVATE_H__
+ 
+ #include <glib.h>
++
++#ifndef __EMSCRIPTEN__
+ #include "gwakeup.h"
++#endif
++
+ #include "gstdioprivate.h"
+ 
+ /* gcc defines __SANITIZE_ADDRESS__, clang sets the address_sanitizer
+@@ -162,6 +166,7 @@ char *g_find_program_for_path (const char *program,
+ 
+ 
+ typedef struct {
++#ifndef __EMSCRIPTEN__
+   /* See gwakeup.c */
+   GWakeup *             (* g_wakeup_new)                (void);
+   void                  (* g_wakeup_free)               (GWakeup *wakeup);
+@@ -169,6 +174,7 @@ typedef struct {
+                                                         GPollFD *poll_fd);
+   void                  (* g_wakeup_signal)             (GWakeup *wakeup);
+   void                  (* g_wakeup_acknowledge)        (GWakeup *wakeup);
++#endif
+ 
+   /* See gmain.c */
+   GMainContext *        (* g_get_worker_context)        (void);
 diff --git a/glib/glib-unix.c b/glib/glib-unix.c
-index d5bf896..8967e08 100644
+index d5bf896b4..c1c6bce5e 100644
 --- a/glib/glib-unix.c
 +++ b/glib/glib-unix.c
 @@ -29,6 +29,7 @@
@@ -812,78 +2101,202 @@ index d5bf896..8967e08 100644
  #include <sys/types.h>
  #include <pwd.h>
  
-@@ -272,17 +273,19 @@ g_unix_fd_source_dispatch (GSource     *source,
+@@ -272,6 +273,10 @@ g_unix_fd_source_dispatch (GSource     *source,
                             GSourceFunc  callback,
                             gpointer     user_data)
  {
--  GUnixFDSource *fd_source = (GUnixFDSource *) source;
--  GUnixFDSourceFunc func = (GUnixFDSourceFunc) callback;
--
--  if (!callback)
--    {
--      g_warning ("GUnixFDSource dispatched without callback. "
--                 "You must call g_source_set_callback().");
--      return FALSE;
--    }
--
--  return (* func) (fd_source->fd, g_source_query_unix_fd (source, fd_source->tag), user_data);
++#ifdef __EMSCRIPTEN__
 +  fprintf(stderr, "%s (%d): I commented this out - ARL\n", __FUNCTION__, __LINE__);
 +  return FALSE;
-+  // GUnixFDSource *fd_source = (GUnixFDSource *) source;
-+  // GUnixFDSourceFunc func = (GUnixFDSourceFunc) callback;
-+  //
-+  // if (!callback)
-+  //   {
-+  //     g_warning ("GUnixFDSource dispatched without callback. "
-+  //                "You must call g_source_set_callback().");
-+  //     return FALSE;
-+  //   }
-+  //
-+  // return (* func) (fd_source->fd, g_source_query_unix_fd (source, fd_source->tag), user_data);
++#else
+   GUnixFDSource *fd_source = (GUnixFDSource *) source;
+   GUnixFDSourceFunc func = (GUnixFDSourceFunc) callback;
+ 
+@@ -283,6 +288,7 @@ g_unix_fd_source_dispatch (GSource     *source,
+     }
+ 
+   return (* func) (fd_source->fd, g_source_query_unix_fd (source, fd_source->tag), user_data);
++#endif
  }
  
  GSourceFuncs g_unix_fd_source_funcs = {
-@@ -347,21 +350,23 @@ g_unix_fd_add_full (gint              priority,
+@@ -347,6 +353,10 @@ g_unix_fd_add_full (gint              priority,
                      gpointer          user_data,
                      GDestroyNotify    notify)
  {
--  GSource *source;
--  guint id;
--
--  g_return_val_if_fail (function != NULL, 0);
--
--  source = g_unix_fd_source_new (fd, condition);
--
--  if (priority != G_PRIORITY_DEFAULT)
--    g_source_set_priority (source, priority);
--
--  g_source_set_callback (source, (GSourceFunc) function, user_data, notify);
--  id = g_source_attach (source, NULL);
--  g_source_unref (source);
--
--  return id;
++#ifdef __EMSCRIPTEN__
 +  fprintf(stderr, "%s (%d): I commented this out - ARL\n", __FUNCTION__, __LINE__);
 +  return 0;
-+  // GSource *source;
-+  // guint id;
-+  //
-+  // g_return_val_if_fail (function != NULL, 0);
-+  //
-+  // source = g_unix_fd_source_new (fd, condition);
-+  //
-+  // if (priority != G_PRIORITY_DEFAULT)
-+  //   g_source_set_priority (source, priority);
-+  //
-+  // g_source_set_callback (source, (GSourceFunc) function, user_data, notify);
-+  // id = g_source_attach (source, NULL);
-+  // g_source_unref (source);
-+  //
-+  // return id;
++#else
+   GSource *source;
+   guint id;
+ 
+@@ -362,6 +372,7 @@ g_unix_fd_add_full (gint              priority,
+   g_source_unref (source);
+ 
+   return id;
++#endif
  }
  
  /**
+diff --git a/glib/glib.h b/glib/glib.h
+index d9b4e3414..25443a5a9 100644
+--- a/glib/glib.h
++++ b/glib/glib.h
+@@ -29,79 +29,27 @@
+ 
+ #define __GLIB_H_INSIDE__
+ 
+-#include <glib/galloca.h>
+-#include <glib/garray.h>
++#ifndef __EMSCRIPTEN__
++
+ #include <glib/gasyncqueue.h>
+-#include <glib/gatomic.h>
+ #include <glib/gbacktrace.h>
+ #include <glib/gbase64.h>
+-#include <glib/gbitlock.h>
+-#include <glib/gbookmarkfile.h>
+-#include <glib/gbytes.h>
+-#include <glib/gcharset.h>
+-#include <glib/gchecksum.h>
+-#include <glib/gconvert.h>
+-#include <glib/gdataset.h>
+-#include <glib/gdate.h>
+-#include <glib/gdatetime.h>
+-#include <glib/gdir.h>
+-#include <glib/genviron.h>
+-#include <glib/gerror.h>
+-#include <glib/gfileutils.h>
+-#include <glib/ggettext.h>
+-#include <glib/ghash.h>
+ #include <glib/ghmac.h>
+-#include <glib/ghook.h>
+ #include <glib/ghostutils.h>
+-#include <glib/giochannel.h>
+-#include <glib/gkeyfile.h>
+-#include <glib/glist.h>
+-#include <glib/gmacros.h>
+-#include <glib/gmain.h>
+-#include <glib/gmappedfile.h>
+-#include <glib/gmarkup.h>
+-#include <glib/gmem.h>
+-#include <glib/gmessages.h>
+-#include <glib/gnode.h>
+ #include <glib/goption.h>
+ #include <glib/gpathbuf.h>
+-#include <glib/gpattern.h>
+-#include <glib/gpoll.h>
+ #include <glib/gprimes.h>
+-#include <glib/gqsort.h>
+-#include <glib/gquark.h>
+-#include <glib/gqueue.h>
+ #include <glib/grand.h>
+-#include <glib/grcbox.h>
+-#include <glib/grefcount.h>
+ #include <glib/grefstring.h>
+-#include <glib/gregex.h>
+-#include <glib/gscanner.h>
+ #include <glib/gsequence.h>
+ #include <glib/gshell.h>
+-#include <glib/gslice.h>
+-#include <glib/gslist.h>
+ #include <glib/gspawn.h>
+-#include <glib/gstrfuncs.h>
+-#include <glib/gstring.h>
+ #include <glib/gstringchunk.h>
+ #include <glib/gstrvbuilder.h>
+-#include <glib/gtestutils.h>
+-#include <glib/gthread.h>
+ #include <glib/gthreadpool.h>
+-#include <glib/gtimer.h>
+-#include <glib/gtimezone.h>
+ #include <glib/gtrashstack.h>
+-#include <glib/gtree.h>
+-#include <glib/gtypes.h>
+-#include <glib/gunicode.h>
+ #include <glib/guri.h>
+-#include <glib/gutils.h>
+ #include <glib/guuid.h>
+-#include <glib/gvariant.h>
+-#include <glib/gvarianttype.h>
+-#include <glib/gversion.h>
+-#include <glib/gversionmacros.h>
+ 
+ #ifdef G_PLATFORM_WIN32
+ #include <glib/gwin32.h>
+@@ -112,10 +60,68 @@
+ #include <glib/deprecated/gcompletion.h>
+ #include <glib/deprecated/gmain.h>
+ #include <glib/deprecated/grel.h>
++
++
++#endif /* NOT __EMSCRIPTEN__ */
++
+ #include <glib/deprecated/gthread.h>
++#include <glib/galloca.h>
++#include <glib/garray.h>
++#include <glib/gatomic.h>
++#include <glib/gcharset.h>
++#include <glib/ghash.h>
++#include <glib/glist.h>
++#include <glib/gmacros.h>
++#include <glib/gmem.h>
++#include <glib/gmessages.h>
++#include <glib/gquark.h>
++#include <glib/gslice.h>
++#include <glib/gslist.h>
++#include <glib/gstrfuncs.h>
++#include <glib/gthread.h>
++#include <glib/gtypes.h>
++#include <glib/gunicode.h>
++#include <glib/gmain.h>
++#include <glib/gdir.h>
++#include <glib/gconvert.h>
++#include <glib/genviron.h>
++#include <glib/gdataset.h>
++#include <glib/gscanner.h>
++#include <glib/gfileutils.h>
++#include <glib/gmarkup.h>
++#include <glib/ggettext.h>
++#include <glib/gtimer.h>
++#include <glib/giochannel.h>
++#include <glib/grcbox.h>
++#include <glib/gqueue.h>
++#include <glib/gdate.h>
++#include <glib/gdatetime.h>
++#include <glib/gtree.h>
++#include <glib/gregex.h>
++#include <glib/ghook.h>
++#include <glib/gkeyfile.h>
++#include <glib/gqsort.h>
++#include <glib/gbookmarkfile.h>
++#include <glib/gmappedfile.h>
++#include <glib/gchecksum.h>
++#include <glib/gutils.h>
++#include <glib/gnode.h>
++#include <glib/gvariant.h>
++#include <glib/gvarianttype.h>
++#include <glib/gstring.h>
++#include <glib/gerror.h>
++#include <glib/gbytes.h>
++#include <glib/gtestutils.h>
++#include <glib/gpoll.h>
++#include <glib/gtimezone.h>
++#include <glib/gversion.h>
++#include <glib/gversionmacros.h>
++#include <glib/grefcount.h>
++#include <glib/gbitlock.h>
++#include <glib/gpattern.h>
+ 
+-#include <glib/glib-autocleanups.h>
+ #include <glib/glib-typeof.h>
++#include <glib/glib-autocleanups.h>
+ 
+ #undef __GLIB_H_INSIDE__
+ 
 diff --git a/glib/glist.c b/glib/glist.c
-index 754a3ec..8b9d046 100644
+index 754a3ec52..8b9d0460d 100644
 --- a/glib/glist.c
 +++ b/glib/glist.c
 @@ -195,6 +195,11 @@ g_list_free (GList *list)
@@ -1005,7 +2418,7 @@ index 754a3ec..8b9d046 100644
  
  /**
 diff --git a/glib/glist.h b/glib/glist.h
-index 2a453b7..f6f9bd7 100644
+index 2a453b79f..f6f9bd79f 100644
 --- a/glib/glist.h
 +++ b/glib/glist.h
 @@ -51,6 +51,7 @@ GLIB_AVAILABLE_IN_ALL
@@ -1035,7 +2448,7 @@ index 2a453b7..f6f9bd7 100644
  GList*   g_list_sort_with_data          (GList            *list,
  					 GCompareDataFunc  compare_func,
 diff --git a/glib/gmacros.h b/glib/gmacros.h
-index a7ed775..9059722 100644
+index a7ed77541..90597227e 100644
 --- a/glib/gmacros.h
 +++ b/glib/gmacros.h
 @@ -1351,16 +1351,16 @@
@@ -1062,7 +2475,7 @@ index a7ed775..9059722 100644
  #define _GLIB_DEFINE_AUTOPTR_CHAINUP(ModuleObjName, ParentName) \
    _GLIB_DEFINE_AUTOPTR_CLEANUP_FUNCS(ModuleObjName, ParentName, _GLIB_AUTOPTR_CLEAR_FUNC_NAME(ParentName))
 diff --git a/glib/gmain.c b/glib/gmain.c
-index d28f89e..5c27b69 100644
+index d28f89e0c..656a2d5ec 100644
 --- a/glib/gmain.c
 +++ b/glib/gmain.c
 @@ -34,6 +34,7 @@
@@ -1081,7 +2494,28 @@ index d28f89e..5c27b69 100644
  
  #ifdef HAVE_PIDFD
  #include <sys/syscall.h>
-@@ -471,8 +473,8 @@ static gboolean g_child_watch_prepare  (GSource     *source,
+@@ -122,7 +124,10 @@
+ #include "gtimer.h"
+ #endif
+ 
++#ifndef __EMSCRIPTEN__
+ #include "gwakeup.h"
++#endif
++
+ #include "gmain-internal.h"
+ #include "glib-init.h"
+ #include "glib-private.h"
+@@ -327,7 +332,9 @@ struct _GMainContext
+   GPollFD *cached_poll_array;
+   guint cached_poll_array_size;
+ 
++#ifndef __EMSCRIPTEN__
+   GWakeup *wakeup;
++#endif
+ 
+   GPollFD wake_up_rec;
+ 
+@@ -471,8 +478,8 @@ static gboolean g_child_watch_prepare  (GSource     *source,
  				        gint        *timeout);
  static gboolean g_child_watch_check    (GSource     *source);
  static gboolean g_child_watch_dispatch (GSource     *source,
@@ -1092,19 +2526,86 @@ index d28f89e..5c27b69 100644
  static void     g_child_watch_finalize (GSource     *source);
  #if defined(G_OS_UNIX) && !defined(G_PLATFORM_WASM)
  static void g_unix_signal_handler (int signum);
-@@ -687,6 +689,11 @@ g_main_context_unref (GMainContext *context)
+@@ -603,6 +610,9 @@ poll_rec_list_free (GMainContext *context,
+ void
+ g_main_context_unref (GMainContext *context)
+ {
++#ifdef __EMSCRIPTEN__
++  printf ("%s (%d): ARL Debugging.\n", __FUNCTION__, __LINE__);
++#else
+   GSourceIter iter;
+   GSource *source;
+   GList *sl_iter;
+@@ -686,6 +696,12 @@ g_main_context_unref (GMainContext *context)
+       g_source_unref_internal (source, NULL, FALSE);
      }
    g_slist_free (remaining_sources);
- }
++#endif
++}
 +void
 +g_main_context_unref_adapter (gpointer context)
 +{
 +  g_main_context_unref ((GMainContext*) context);
-+}
+ }
  
  /* Helper function used by mainloop/overflow test.
-  */
-@@ -2442,6 +2449,11 @@ g_source_unref (GSource *source)
+@@ -727,6 +743,10 @@ g_main_context_new (void)
+ GMainContext *
+ g_main_context_new_with_flags (GMainContextFlags flags)
+ {
++#ifdef __EMSCRIPTEN__
++  printf ("%s (%d): ARL - Not implmented.\n", __FUNCTION__, __LINE__);
++  return NULL;
++#else
+   static gsize initialised;
+   GMainContext *context;
+ 
+@@ -782,6 +802,7 @@ g_main_context_new_with_flags (GMainContextFlags flags)
+   G_UNLOCK (main_context_list);
+ 
+   return context;
++#endif
+ }
+ 
+ /**
+@@ -1278,6 +1299,10 @@ g_source_attach_unlocked (GSource      *source,
+                           GMainContext *context,
+                           gboolean      do_wakeup)
+ {
++#ifdef __EMSCRIPTEN__
++  printf ("%s (%d): ARL - Not implemented.\n", __FUNCTION__, __LINE__);
++  return -1;
++#else
+   GSList *tmp_list;
+   guint id;
+ 
+@@ -1333,6 +1358,7 @@ g_source_attach_unlocked (GSource      *source,
+                 context);
+ 
+   return source->source_id;
++#endif
+ }
+ 
+ /**
+@@ -2034,6 +2060,9 @@ void
+ g_source_set_ready_time (GSource *source,
+                          gint64   ready_time)
+ {
++#ifdef __EMSCRIPTEN__
++  printf ("%s (%d): ARL - Not implemented.\n", __FUNCTION__, __LINE__);
++#else
+   GMainContext *context;
+ 
+   g_return_if_fail (source != NULL);
+@@ -2063,6 +2092,7 @@ g_source_set_ready_time (GSource *source,
+         g_wakeup_signal (context->wakeup);
+       UNLOCK_CONTEXT (context);
+     }
++#endif
+ }
+ 
+ /**
+@@ -2442,6 +2472,11 @@ g_source_unref (GSource *source)
  
    g_source_unref_internal (source, source->context, FALSE);
  }
@@ -1116,7 +2617,26 @@ index d28f89e..5c27b69 100644
  
  /**
   * g_main_context_find_source_by_id:
-@@ -4417,6 +4429,11 @@ g_main_loop_unref (GMainLoop *loop)
+@@ -3990,6 +4025,10 @@ g_main_context_check (GMainContext *context,
+ 		      GPollFD      *fds,
+ 		      gint          n_fds)
+ {
++#ifdef __EMSCRIPTEN__
++  printf ("%s (%d): ARL - Not implemented\n", __FUNCTION__, __LINE__);
++  return TRUE;
++#else
+   GSource *source;
+   GSourceIter iter;
+   GPollRec *pollrec;
+@@ -4170,6 +4209,7 @@ g_main_context_check (GMainContext *context,
+   UNLOCK_CONTEXT (context);
+ 
+   return n_ready > 0;
++#endif
+ }
+ 
+ /**
+@@ -4417,6 +4457,11 @@ g_main_loop_unref (GMainLoop *loop)
    g_main_context_unref (loop->context);
    g_free (loop);
  }
@@ -1128,273 +2648,259 @@ index d28f89e..5c27b69 100644
  
  /**
   * g_main_loop_run:
-@@ -5033,33 +5050,35 @@ g_timeout_dispatch (GSource     *source,
-                     GSourceFunc  callback,
-                     gpointer     user_data)
+@@ -4498,6 +4543,9 @@ g_main_loop_run (GMainLoop *loop)
+ void 
+ g_main_loop_quit (GMainLoop *loop)
  {
--  GTimeoutSource *timeout_source = (GTimeoutSource *)source;
--  gboolean again;
--
--  if (!callback)
--    {
--      g_warning ("Timeout source dispatched without callback. "
--                 "You must call g_source_set_callback().");
--      return FALSE;
--    }
--
--  if (timeout_source->one_shot)
--    {
--      GSourceOnceFunc once_callback = (GSourceOnceFunc) callback;
--      once_callback (user_data);
--      again = G_SOURCE_REMOVE;
--    }
--  else
--    {
--      again = callback (user_data);
--    }
--
--  TRACE (GLIB_TIMEOUT_DISPATCH (source, source->context, callback, user_data, again));
--
--  if (again)
--    g_timeout_set_expiration (timeout_source, g_source_get_time (source));
--
--  return again;
-+  fprintf(stderr, "%s (%d): I commented this out - ARL\n", __FUNCTION__, __LINE__);
-+  return FALSE;
-+  // GTimeoutSource *timeout_source = (GTimeoutSource *)source;
-+  // gboolean again;
-+  //
-+  // if (!callback)
-+  //   {
-+  //     g_warning ("Timeout source dispatched without callback. "
-+  //                "You must call g_source_set_callback().");
-+  //     return FALSE;
-+  //   }
-+  //
-+  // if (timeout_source->one_shot)
-+  //   {
-+  //     GSourceOnceFunc once_callback = callback;
-+  //     once_callback (user_data);
-+  //     again = G_SOURCE_REMOVE;
-+  //   }
-+  // else
-+  //   {
-+  //     again = callback (user_data);
-+  //   }
-+  //
-+  // TRACE (GLIB_TIMEOUT_DISPATCH (source, source->context, callback, user_data, again));
-+  //
-+  // if (again)
-+  //   g_timeout_set_expiration (timeout_source, g_source_get_time (source));
-+  //
-+  // return again;
- }
++#ifdef __EMSCRIPTEN__
++  printf ("%s (%d): ARL - Not implemented\n", __FUNCTION__, __LINE__);
++#else
+   g_return_if_fail (loop != NULL);
+   g_return_if_fail (g_atomic_int_get (&loop->ref_count) > 0);
  
- static GSource *
-@@ -5135,24 +5154,26 @@ timeout_add_full (gint           priority,
-                   gpointer       data,
-                   GDestroyNotify notify)
- {
--  GSource *source;
--  guint id;
--
--  g_return_val_if_fail (function != NULL, 0);
--
--  source = timeout_source_new (interval, seconds, one_shot);
--
--  if (priority != G_PRIORITY_DEFAULT)
--    g_source_set_priority (source, priority);
--
--  g_source_set_callback (source, function, data, notify);
--  id = g_source_attach (source, NULL);
--
--  TRACE (GLIB_TIMEOUT_ADD (source, g_main_context_default (), id, priority, interval, function, data));
--
--  g_source_unref (source);
--
--  return id;
-+  fprintf(stderr, "%s (%d): I commented this out - ARL\n", __FUNCTION__, __LINE__);
-+  return 0;
-+  // GSource *source;
-+  // guint id;
-+  //
-+  // g_return_val_if_fail (function != NULL, 0);
-+  //
-+  // source = timeout_source_new (interval, seconds, one_shot);
-+  //
-+  // if (priority != G_PRIORITY_DEFAULT)
-+  //   g_source_set_priority (source, priority);
-+  //
-+  // g_source_set_callback (source, function, data, notify);
-+  // id = g_source_attach (source, NULL);
-+  //
-+  // TRACE (GLIB_TIMEOUT_ADD (source, g_main_context_default (), id, priority, interval, function, data));
-+  //
-+  // g_source_unref (source);
-+  //
-+  // return id;
+@@ -4510,6 +4558,7 @@ g_main_loop_quit (GMainLoop *loop)
+   UNLOCK_CONTEXT (loop->context);
+ 
+   TRACE (GLIB_MAIN_LOOP_QUIT (loop));
++#endif
  }
  
  /**
-@@ -5277,7 +5298,9 @@ g_timeout_add_once (guint32         interval,
+@@ -4677,6 +4726,9 @@ g_main_context_add_poll_unlocked (GMainContext *context,
+ 				  gint          priority,
+ 				  GPollFD      *fd)
+ {
++#ifdef __EMSCRIPTEN__
++  printf ("%s (%d): ARL - Not implemented\n", __FUNCTION__, __LINE__);
++#else
+   GPollRec *prevrec, *nextrec;
+   GPollRec *newrec = g_slice_new (GPollRec);
+ 
+@@ -4714,6 +4766,7 @@ g_main_context_add_poll_unlocked (GMainContext *context,
+   /* Now wake up the main loop if it is waiting in the poll() */
+   if (fd != &context->wake_up_rec)
+     g_wakeup_signal (context->wakeup);
++#endif
+ }
+ 
+ /**
+@@ -4744,6 +4797,9 @@ static void
+ g_main_context_remove_poll_unlocked (GMainContext *context,
+ 				     GPollFD      *fd)
+ {
++#ifdef __EMSCRIPTEN__
++  printf ("%s (%d): ARL - Not implemented\n", __FUNCTION__, __LINE__);
++#else
+   GPollRec *pollrec, *prevrec, *nextrec;
+ 
+   prevrec = NULL;
+@@ -4775,6 +4831,7 @@ g_main_context_remove_poll_unlocked (GMainContext *context,
+ 
+   /* Now wake up the main loop if it is waiting in the poll() */
+   g_wakeup_signal (context->wakeup);
++#endif
+ }
+ 
+ /**
+@@ -4935,6 +4992,9 @@ g_main_context_get_poll_func (GMainContext *context)
+ void
+ g_main_context_wakeup (GMainContext *context)
+ {
++#ifdef __EMSCRIPTEN__
++  printf ("%s (%d): ARL - Not implemented\n", __FUNCTION__, __LINE__);
++#else
+   if (!context)
+     context = g_main_context_default ();
+ 
+@@ -4943,6 +5003,7 @@ g_main_context_wakeup (GMainContext *context)
+   TRACE (GLIB_MAIN_CONTEXT_WAKEUP (context));
+ 
+   g_wakeup_signal (context->wakeup);
++#endif
+ }
+ 
+ /**
+@@ -5033,6 +5094,10 @@ g_timeout_dispatch (GSource     *source,
+                     GSourceFunc  callback,
+                     gpointer     user_data)
+ {
++#ifdef __EMSCRIPTEN__
++  fprintf(stderr, "%s (%d): I commented this out - ARL\n", __FUNCTION__, __LINE__);
++  return FALSE;
++#else
+   GTimeoutSource *timeout_source = (GTimeoutSource *)source;
+   gboolean again;
+ 
+@@ -5045,7 +5110,7 @@ g_timeout_dispatch (GSource     *source,
+ 
+   if (timeout_source->one_shot)
+     {
+-      GSourceOnceFunc once_callback = (GSourceOnceFunc) callback;
++      GSourceOnceFunc once_callback = callback;
+       once_callback (user_data);
+       again = G_SOURCE_REMOVE;
+     }
+@@ -5060,6 +5125,7 @@ g_timeout_dispatch (GSource     *source,
+     g_timeout_set_expiration (timeout_source, g_source_get_time (source));
+ 
+   return again;
++#endif
+ }
+ 
+ static GSource *
+@@ -5135,6 +5201,10 @@ timeout_add_full (gint           priority,
+                   gpointer       data,
+                   GDestroyNotify notify)
+ {
++#ifdef __EMSCRIPTEN__
++  fprintf(stderr, "%s (%d): I commented this out - ARL\n", __FUNCTION__, __LINE__);
++  return 0;
++#else
+   GSource *source;
+   guint id;
+ 
+@@ -5153,6 +5223,7 @@ timeout_add_full (gint           priority,
+   g_source_unref (source);
+ 
+   return id;
++#endif
+ }
+ 
+ /**
+@@ -5277,7 +5348,12 @@ g_timeout_add_once (guint32         interval,
                      GSourceOnceFunc function,
                      gpointer        data)
  {
 -  return timeout_add_full (G_PRIORITY_DEFAULT, interval, FALSE, TRUE, (GSourceFunc) function, data, NULL);
++#ifdef __EMSCRIPTEN__
 +  fprintf(stderr, "%s (%d): I commented this out - ARL\n", __FUNCTION__, __LINE__);
 +  return 0;
-+  //return timeout_add_full (G_PRIORITY_DEFAULT, interval, FALSE, TRUE, function, data, NULL);
++#else
++  return timeout_add_full (G_PRIORITY_DEFAULT, interval, FALSE, TRUE, function, data, NULL);
++#endif
  }
  
  /**
-@@ -5883,19 +5906,20 @@ g_child_watch_dispatch (GSource    *source,
+@@ -5479,6 +5555,9 @@ g_child_watch_finalize (GSource *source)
+ static void
+ wake_source (GSource *source)
+ {
++#ifdef __EMSCRIPTEN__
++  printf ("%s (%d): ARL - Not implemented\n", __FUNCTION__, __LINE__);
++#else
+   GMainContext *context;
+ 
+   /* This should be thread-safe:
+@@ -5511,11 +5590,15 @@ wake_source (GSource *source)
+   if (context)
+     g_wakeup_signal (context->wakeup);
+   G_UNLOCK(main_context_list);
++#endif
+ }
+ 
+ static void
+ dispatch_unix_signals_unlocked (void)
+ {
++#ifdef __EMSCRIPTEN__
++  printf ("%s (%d): ARL - Not implemented\n", __FUNCTION__, __LINE__);
++#else
+   gboolean pending[NSIG];
+   GSList *node;
+   gint i;
+@@ -5597,6 +5680,7 @@ dispatch_unix_signals_unlocked (void)
+         }
+     }
+ 
++#endif
+ }
+ 
+ static void
+@@ -5883,6 +5967,9 @@ g_child_watch_dispatch (GSource    *source,
  			GSourceFunc callback,
  			gpointer    user_data)
  {
--  GChildWatchSource *child_watch_source;
--  GChildWatchFunc child_watch_callback = (GChildWatchFunc) callback;
--
--  child_watch_source = (GChildWatchSource *) source;
--
--  if (!callback)
--    {
--      g_warning ("Child watch source dispatched without callback. "
--		 "You must call g_source_set_callback().");
--      return FALSE;
--    }
--
--  (child_watch_callback) (child_watch_source->pid, child_watch_source->child_status, user_data);
++#ifdef __EMSCRIPTEN__
 +  fprintf(stderr, "%s (%d): I commented this out - ARL\n", __FUNCTION__, __LINE__);
-+  // GChildWatchSource *child_watch_source;
-+  // GChildWatchFunc child_watch_callback = (GChildWatchFunc) callback;
-+  //
-+  // child_watch_source = (GChildWatchSource *) source;
-+  //
-+  // if (!callback)
-+  //   {
-+  //     g_warning ("Child watch source dispatched without callback. "
-+		//  "You must call g_source_set_callback().");
-+  //     return FALSE;
-+  //   }
-+  //
-+  // (child_watch_callback) (child_watch_source->pid, child_watch_source->child_status, user_data);
++#else
+   GChildWatchSource *child_watch_source;
+   GChildWatchFunc child_watch_callback = (GChildWatchFunc) callback;
+ 
+@@ -5896,6 +5983,7 @@ g_child_watch_dispatch (GSource    *source,
+     }
+ 
+   (child_watch_callback) (child_watch_source->pid, child_watch_source->child_status, user_data);
++#endif
  
    /* We never keep a child watch source around as the child is gone */
    return FALSE;
-@@ -6079,24 +6103,26 @@ g_child_watch_add_full (gint            priority,
+@@ -6079,6 +6167,10 @@ g_child_watch_add_full (gint            priority,
  			gpointer        data,
  			GDestroyNotify  notify)
  {
--  GSource *source;
--  guint id;
--  
--  g_return_val_if_fail (function != NULL, 0);
--#ifndef G_OS_WIN32
--  g_return_val_if_fail (pid > 0, 0);
--#endif
--
--  source = g_child_watch_source_new (pid);
--
--  if (priority != G_PRIORITY_DEFAULT)
--    g_source_set_priority (source, priority);
--
--  g_source_set_callback (source, (GSourceFunc) function, data, notify);
--  id = g_source_attach (source, NULL);
--  g_source_unref (source);
--
--  return id;
++#ifdef __EMSCRIPTEN__
 +  fprintf(stderr, "%s (%d): I commented this out - ARL\n", __FUNCTION__, __LINE__);
 +  return 0;
-+//   GSource *source;
-+//   guint id;
-+//   
-+//   g_return_val_if_fail (function != NULL, 0);
-+// #ifndef G_OS_WIN32
-+//   g_return_val_if_fail (pid > 0, 0);
-+// #endif
-+//
-+//   source = g_child_watch_source_new (pid);
-+//
-+//   if (priority != G_PRIORITY_DEFAULT)
-+//     g_source_set_priority (source, priority);
-+//
-+//   g_source_set_callback (source, function, data, notify);
-+//   id = g_source_attach (source, NULL);
-+//   g_source_unref (source);
-+//
-+//   return id;
++#else
+   GSource *source;
+   guint id;
+   
+@@ -6092,11 +6184,12 @@ g_child_watch_add_full (gint            priority,
+   if (priority != G_PRIORITY_DEFAULT)
+     g_source_set_priority (source, priority);
+ 
+-  g_source_set_callback (source, (GSourceFunc) function, data, notify);
++  g_source_set_callback (source, function, data, notify);
+   id = g_source_attach (source, NULL);
+   g_source_unref (source);
+ 
+   return id;
++#endif
  }
  
  /**
-@@ -6163,30 +6189,32 @@ g_idle_dispatch (GSource    *source,
+@@ -6163,6 +6256,10 @@ g_idle_dispatch (GSource    *source,
  		 GSourceFunc callback,
  		 gpointer    user_data)
  {
--  GIdleSource *idle_source = (GIdleSource *)source;
--  gboolean again;
--
--  if (!callback)
--    {
--      g_warning ("Idle source dispatched without callback. "
--		 "You must call g_source_set_callback().");
--      return FALSE;
--    }
--
--  if (idle_source->one_shot)
--    {
--      GSourceOnceFunc once_callback = (GSourceOnceFunc) callback;
--      once_callback (user_data);
--      again = G_SOURCE_REMOVE;
--    }
--  else
--    {
--      again = callback (user_data);
--    }
--
--  TRACE (GLIB_IDLE_DISPATCH (source, source->context, callback, user_data, again));
--
--  return again;
++#ifdef __EMSCRIPTEN__
 +  fprintf(stderr, "%s (%d): I commented this out - ARL\n", __FUNCTION__, __LINE__);
 +  return FALSE;
-+  // GIdleSource *idle_source = (GIdleSource *)source;
-+  // gboolean again;
-+  //
-+  // if (!callback)
-+  //   {
-+  //     g_warning ("Idle source dispatched without callback. "
-+		//  "You must call g_source_set_callback().");
-+  //     return FALSE;
-+  //   }
-+  //
-+  // if (idle_source->one_shot)
-+  //   {
-+  //     GSourceOnceFunc once_callback = callback;
-+  //     once_callback (user_data);
-+  //     again = G_SOURCE_REMOVE;
-+  //   }
-+  // else
-+  //   {
-+  //     again = callback (user_data);
-+  //   }
-+  //
-+  // TRACE (GLIB_IDLE_DISPATCH (source, source->context, callback, user_data, again));
-+  //
-+  // return again;
++#else
+   GIdleSource *idle_source = (GIdleSource *)source;
+   gboolean again;
+ 
+@@ -6175,7 +6272,7 @@ g_idle_dispatch (GSource    *source,
+ 
+   if (idle_source->one_shot)
+     {
+-      GSourceOnceFunc once_callback = (GSourceOnceFunc) callback;
++      GSourceOnceFunc once_callback = callback;
+       once_callback (user_data);
+       again = G_SOURCE_REMOVE;
+     }
+@@ -6187,6 +6284,7 @@ g_idle_dispatch (GSource    *source,
+   TRACE (GLIB_IDLE_DISPATCH (source, source->context, callback, user_data, again));
+ 
+   return again;
++#endif
  }
  
  static GSource *
-@@ -6339,7 +6367,9 @@ guint
+@@ -6339,7 +6437,12 @@ guint
  g_idle_add_once (GSourceOnceFunc function,
                   gpointer        data)
  {
 -  return idle_add_full (G_PRIORITY_DEFAULT_IDLE, TRUE, (GSourceFunc) function, data, NULL);
++#ifdef __EMSCRIPTEN__
 +  fprintf(stderr, "%s (%d): I commented this out - ARL\n", __FUNCTION__, __LINE__);
 +  return 0;
-+  //return idle_add_full (G_PRIORITY_DEFAULT_IDLE, TRUE, function, data, NULL);
++#else
++  return idle_add_full (G_PRIORITY_DEFAULT_IDLE, TRUE, function, data, NULL);
++#endif
  }
  
  /**
-@@ -6499,6 +6529,7 @@ g_get_worker_context (void)
+@@ -6499,6 +6602,7 @@ g_get_worker_context (void)
        sigfillset (&all);
        pthread_sigmask (SIG_SETMASK, &all, &prev_mask);
  #endif
@@ -1403,7 +2909,7 @@ index d28f89e..5c27b69 100644
        g_thread_new ("gmain", glib_worker_main, NULL);
  #if defined(G_OS_UNIX) && !defined(G_PLATFORM_WASM)
 diff --git a/glib/gmain.h b/glib/gmain.h
-index ae3cc3e..2f83214 100644
+index ae3cc3ec5..a8dc66c6c 100644
 --- a/glib/gmain.h
 +++ b/glib/gmain.h
 @@ -402,6 +402,7 @@ GLIB_AVAILABLE_IN_ALL
@@ -1414,7 +2920,17 @@ index ae3cc3e..2f83214 100644
  GLIB_AVAILABLE_IN_ALL
  GMainContext *g_main_context_default   (void);
  
-@@ -571,6 +572,11 @@ g_main_context_pusher_free (GMainContextPusher *pusher)
+@@ -427,7 +428,9 @@ GSource      *g_main_context_find_source_by_funcs_user_data (GMainContext *conte
+ /* Low level functions for implementing custom main loops.
+  */
+ GLIB_AVAILABLE_IN_ALL
++#ifdef __EMSCRIPTEN__
+ void     g_main_context_wakeup  (GMainContext *context);
++#endif
+ GLIB_AVAILABLE_IN_ALL
+ gboolean g_main_context_acquire (GMainContext *context);
+ GLIB_AVAILABLE_IN_ALL
+@@ -571,6 +574,11 @@ g_main_context_pusher_free (GMainContextPusher *pusher)
  {
    g_main_context_pop_thread_default ((GMainContext *) pusher);
  }
@@ -1426,7 +2942,7 @@ index ae3cc3e..2f83214 100644
  G_GNUC_END_IGNORE_DEPRECATIONS
  
  /* GMainLoop: */
-@@ -586,6 +592,7 @@ GLIB_AVAILABLE_IN_ALL
+@@ -586,6 +594,7 @@ GLIB_AVAILABLE_IN_ALL
  GMainLoop *g_main_loop_ref        (GMainLoop    *loop);
  GLIB_AVAILABLE_IN_ALL
  void       g_main_loop_unref      (GMainLoop    *loop);
@@ -1434,7 +2950,7 @@ index ae3cc3e..2f83214 100644
  GLIB_AVAILABLE_IN_ALL
  gboolean   g_main_loop_is_running (GMainLoop    *loop);
  GLIB_AVAILABLE_IN_ALL
-@@ -607,6 +614,7 @@ GLIB_AVAILABLE_IN_ALL
+@@ -607,6 +616,7 @@ GLIB_AVAILABLE_IN_ALL
  GSource *g_source_ref             (GSource        *source);
  GLIB_AVAILABLE_IN_ALL
  void     g_source_unref           (GSource        *source);
@@ -1443,7 +2959,7 @@ index ae3cc3e..2f83214 100644
  GLIB_AVAILABLE_IN_ALL
  guint    g_source_attach          (GSource        *source,
 diff --git a/glib/gmappedfile.c b/glib/gmappedfile.c
-index 4d7a89e..37dfdf4 100644
+index 4d7a89eb2..37dfdf484 100644
 --- a/glib/gmappedfile.c
 +++ b/glib/gmappedfile.c
 @@ -408,6 +408,11 @@ g_mapped_file_unref (GMappedFile *file)
@@ -1467,7 +2983,7 @@ index 4d7a89e..37dfdf4 100644
  				     g_mapped_file_ref (file));
  }
 diff --git a/glib/gmappedfile.h b/glib/gmappedfile.h
-index 4f5f698..e76ceb2 100644
+index 4f5f6981b..e76ceb2f5 100644
 --- a/glib/gmappedfile.h
 +++ b/glib/gmappedfile.h
 @@ -51,6 +51,7 @@ GLIB_AVAILABLE_IN_ALL
@@ -1479,7 +2995,7 @@ index 4f5f698..e76ceb2 100644
  GLIB_DEPRECATED_FOR(g_mapped_file_unref)
  void         g_mapped_file_free         (GMappedFile  *file);
 diff --git a/glib/gmarkup.c b/glib/gmarkup.c
-index 9422abd..b058264 100644
+index 9422abde4..b05826460 100644
 --- a/glib/gmarkup.c
 +++ b/glib/gmarkup.c
 @@ -310,6 +310,11 @@ g_markup_parse_context_unref (GMarkupParseContext *context)
@@ -1495,7 +3011,7 @@ index 9422abd..b058264 100644
  static void
  string_full_free (gpointer ptr)
 diff --git a/glib/gmarkup.h b/glib/gmarkup.h
-index 5b57813..671b7e3 100644
+index 5b5781350..671b7e34d 100644
 --- a/glib/gmarkup.h
 +++ b/glib/gmarkup.h
 @@ -196,6 +196,7 @@ GLIB_AVAILABLE_IN_2_36
@@ -1507,7 +3023,7 @@ index 5b57813..671b7e3 100644
  void                 g_markup_parse_context_free  (GMarkupParseContext *context);
  GLIB_AVAILABLE_IN_ALL
 diff --git a/glib/gmessages.c b/glib/gmessages.c
-index 541b081..83855bd 100644
+index 541b08130..83855bd4a 100644
 --- a/glib/gmessages.c
 +++ b/glib/gmessages.c
 @@ -1920,7 +1920,7 @@ g_log_variant (const gchar    *log_domain,
@@ -1520,7 +3036,7 @@ index 541b081..83855bd 100644
  }
  
 diff --git a/glib/gpattern.c b/glib/gpattern.c
-index 09bdd5a..b7d106d 100644
+index 09bdd5ad9..b7d106d9c 100644
 --- a/glib/gpattern.c
 +++ b/glib/gpattern.c
 @@ -434,6 +434,11 @@ g_pattern_spec_free (GPatternSpec *pspec)
@@ -1536,7 +3052,7 @@ index 09bdd5a..b7d106d 100644
  /**
   * g_pattern_spec_equal:
 diff --git a/glib/gpattern.h b/glib/gpattern.h
-index c8ceb84..179f874 100644
+index c8ceb84d2..179f87405 100644
 --- a/glib/gpattern.h
 +++ b/glib/gpattern.h
 @@ -35,6 +35,7 @@ GLIB_AVAILABLE_IN_ALL
@@ -1548,7 +3064,7 @@ index c8ceb84..179f874 100644
  GPatternSpec *g_pattern_spec_copy (GPatternSpec *pspec);
  GLIB_AVAILABLE_IN_ALL
 diff --git a/glib/gqueue.c b/glib/gqueue.c
-index a5c4f18..5c72f68 100644
+index a5c4f183b..5c72f6856 100644
 --- a/glib/gqueue.c
 +++ b/glib/gqueue.c
 @@ -92,6 +92,11 @@ g_queue_free (GQueue *queue)
@@ -1606,7 +3122,7 @@ index a5c4f18..5c72f68 100644
    g_queue_clear (queue);
  }
 diff --git a/glib/gqueue.h b/glib/gqueue.h
-index c3a28c8..4ae077e 100644
+index c3a28c843..4ae077e85 100644
 --- a/glib/gqueue.h
 +++ b/glib/gqueue.h
 @@ -75,6 +75,7 @@ GLIB_AVAILABLE_IN_ALL
@@ -1618,7 +3134,7 @@ index c3a28c8..4ae077e 100644
  void     g_queue_free_full      (GQueue           *queue,
  				GDestroyNotify    free_func);
 diff --git a/glib/grefstring.c b/glib/grefstring.c
-index f201897..91f4e5c 100644
+index f20189786..91f4e5c4c 100644
 --- a/glib/grefstring.c
 +++ b/glib/grefstring.c
 @@ -284,6 +284,11 @@ g_ref_string_release (char *str)
@@ -1634,7 +3150,7 @@ index f201897..91f4e5c 100644
  /**
   * g_ref_string_length:
 diff --git a/glib/grefstring.h b/glib/grefstring.h
-index ae7d173..5de2e72 100644
+index ae7d173fc..5de2e720c 100644
 --- a/glib/grefstring.h
 +++ b/glib/grefstring.h
 @@ -37,6 +37,7 @@ GLIB_AVAILABLE_IN_2_58
@@ -1646,7 +3162,7 @@ index ae7d173..5de2e72 100644
  GLIB_AVAILABLE_IN_2_58
  gsize   g_ref_string_length     (char       *str);
 diff --git a/glib/gregex.c b/glib/gregex.c
-index 39b9ede..c614141 100644
+index 39b9edeec..c61414195 100644
 --- a/glib/gregex.c
 +++ b/glib/gregex.c
 @@ -265,6 +265,7 @@ static gboolean  interpolate_replacement        (const GMatchInfo *match_info,
@@ -1706,7 +3222,7 @@ index 39b9ede..c614141 100644
    return TRUE;
  }
 diff --git a/glib/gscanner.c b/glib/gscanner.c
-index 451feb6..7c2c304 100644
+index 451feb67b..7c2c304e2 100644
 --- a/glib/gscanner.c
 +++ b/glib/gscanner.c
 @@ -530,6 +530,11 @@ g_scanner_destroy (GScanner *scanner)
@@ -1722,7 +3238,7 @@ index 451feb6..7c2c304 100644
  static void
  g_scanner_msg_handler (GScanner		*scanner,
 diff --git a/glib/gscanner.h b/glib/gscanner.h
-index bbad353..c98f66c 100644
+index bbad353e2..c98f66c4b 100644
 --- a/glib/gscanner.h
 +++ b/glib/gscanner.h
 @@ -216,6 +216,7 @@ GLIB_AVAILABLE_IN_ALL
@@ -1734,7 +3250,7 @@ index bbad353..c98f66c 100644
  void		g_scanner_input_file		(GScanner	*scanner,
  						 gint		input_fd);
 diff --git a/glib/gslist.c b/glib/gslist.c
-index 4e22958..e3ce80b 100644
+index 4e22958d8..e3ce80bbb 100644
 --- a/glib/gslist.c
 +++ b/glib/gslist.c
 @@ -150,6 +150,11 @@ g_slist_free (GSList *list)
@@ -1857,7 +3373,7 @@ index 4e22958..e3ce80b 100644
  
  /**
 diff --git a/glib/gslist.h b/glib/gslist.h
-index c8e0cf2..eb77b40 100644
+index c8e0cf228..eb77b40e0 100644
 --- a/glib/gslist.h
 +++ b/glib/gslist.h
 @@ -50,6 +50,7 @@ GLIB_AVAILABLE_IN_ALL
@@ -1887,7 +3403,7 @@ index c8e0cf2..eb77b40 100644
  GSList*  g_slist_sort_with_data          (GSList           *list,
  					  GCompareDataFunc  compare_func,
 diff --git a/glib/gstrfuncs.c b/glib/gstrfuncs.c
-index 391cf56..54c6c6a 100644
+index 391cf569b..54c6c6af6 100644
 --- a/glib/gstrfuncs.c
 +++ b/glib/gstrfuncs.c
 @@ -2592,6 +2592,11 @@ g_strfreev (gchar **str_array)
@@ -1914,7 +3430,7 @@ index 391cf56..54c6c6a 100644
  /**
   * g_strjoinv:
 diff --git a/glib/gstrfuncs.h b/glib/gstrfuncs.h
-index cb021b6..1527c37 100644
+index cb021b658..1527c3796 100644
 --- a/glib/gstrfuncs.h
 +++ b/glib/gstrfuncs.h
 @@ -377,8 +377,10 @@ gchar*                g_strjoinv       (const gchar  *separator,
@@ -1929,7 +3445,7 @@ index cb021b6..1527c37 100644
  guint                 g_strv_length    (gchar       **str_array);
  
 diff --git a/glib/gtestutils.c b/glib/gtestutils.c
-index 727cad6..a0b224b 100644
+index 727cad614..a0b224bcf 100644
 --- a/glib/gtestutils.c
 +++ b/glib/gtestutils.c
 @@ -2907,6 +2907,7 @@ g_test_add_data_func (const char *testpath,
@@ -2065,7 +3581,7 @@ index 727cad6..a0b224b 100644
  /**
   * g_test_subprocess:
 diff --git a/glib/gtestutils.h b/glib/gtestutils.h
-index 86ee4e5..2c7fda8 100644
+index 86ee4e521..2c7fda89c 100644
 --- a/glib/gtestutils.h
 +++ b/glib/gtestutils.h
 @@ -524,9 +524,11 @@ int           g_test_run_suite          (GTestSuite     *suite);
@@ -2081,7 +3597,7 @@ index 86ee4e5..2c7fda8 100644
  GLIB_AVAILABLE_IN_ALL
  void    g_test_trap_assertions          (const char     *domain,
 diff --git a/glib/gthread.c b/glib/gthread.c
-index c4e75fd..8fb864b 100644
+index c4e75fd11..8fb864b60 100644
 --- a/glib/gthread.c
 +++ b/glib/gthread.c
 @@ -807,6 +807,11 @@ g_thread_unref (GThread *thread)
@@ -2097,7 +3613,7 @@ index c4e75fd..8fb864b 100644
  static void
  g_thread_cleanup (gpointer data)
 diff --git a/glib/gthread.h b/glib/gthread.h
-index e96632b..3a2db25 100644
+index e96632b91..3a2db258b 100644
 --- a/glib/gthread.h
 +++ b/glib/gthread.h
 @@ -143,6 +143,7 @@ GLIB_AVAILABLE_IN_2_32
@@ -2157,7 +3673,7 @@ index e96632b..3a2db25 100644
  
  G_END_DECLS
 diff --git a/glib/gtimer.c b/glib/gtimer.c
-index d2d2599..97ce2fe 100644
+index d2d259918..97ce2fe3a 100644
 --- a/glib/gtimer.c
 +++ b/glib/gtimer.c
 @@ -114,6 +114,11 @@ g_timer_destroy (GTimer *timer)
@@ -2173,7 +3689,7 @@ index d2d2599..97ce2fe 100644
  /**
   * g_timer_start:
 diff --git a/glib/gtimer.h b/glib/gtimer.h
-index 439ffad..c4dff5a 100644
+index 439ffad98..c4dff5a49 100644
 --- a/glib/gtimer.h
 +++ b/glib/gtimer.h
 @@ -47,6 +47,7 @@ GLIB_AVAILABLE_IN_ALL
@@ -2185,7 +3701,7 @@ index 439ffad..c4dff5a 100644
  void	 g_timer_start	         (GTimer      *timer);
  GLIB_AVAILABLE_IN_ALL
 diff --git a/glib/gtimezone.c b/glib/gtimezone.c
-index affa4b1..9dbed2c 100644
+index affa4b144..9dbed2c24 100644
 --- a/glib/gtimezone.c
 +++ b/glib/gtimezone.c
 @@ -103,6 +103,7 @@ typedef struct { gchar bytes[8]; } gint64_be;
@@ -2239,7 +3755,7 @@ index affa4b1..9dbed2c 100644
  
    return TRUE;
 diff --git a/glib/gtimezone.h b/glib/gtimezone.h
-index 679ed4e..2aa9037 100644
+index 679ed4e95..2aa90376d 100644
 --- a/glib/gtimezone.h
 +++ b/glib/gtimezone.h
 @@ -70,6 +70,7 @@ GLIB_AVAILABLE_IN_ALL
@@ -2251,7 +3767,7 @@ index 679ed4e..2aa9037 100644
  GLIB_AVAILABLE_IN_ALL
  gint                    g_time_zone_find_interval                       (GTimeZone   *tz,
 diff --git a/glib/gtree.c b/glib/gtree.c
-index bbd609e..e7bf741 100644
+index bbd609e5b..e7bf7419b 100644
 --- a/glib/gtree.c
 +++ b/glib/gtree.c
 @@ -161,11 +161,11 @@ g_tree_node_new (gpointer key,
@@ -2281,7 +3797,7 @@ index bbd609e..e7bf741 100644
  /**
   * g_tree_destroy:
 diff --git a/glib/gtree.h b/glib/gtree.h
-index 74ab9ce..195f8eb 100644
+index 74ab9ce95..195f8eb91 100644
 --- a/glib/gtree.h
 +++ b/glib/gtree.h
 @@ -71,7 +71,7 @@ typedef gboolean (*GTraverseNodeFunc) (GTreeNode *node,
@@ -2302,7 +3818,7 @@ index 74ab9ce..195f8eb 100644
  void     g_tree_destroy         (GTree            *tree);
  GLIB_AVAILABLE_IN_2_68
 diff --git a/glib/gvariant-core.c b/glib/gvariant-core.c
-index f5e9ddd..013f8d7 100644
+index f5e9dddfe..013f8d720 100644
 --- a/glib/gvariant-core.c
 +++ b/glib/gvariant-core.c
 @@ -800,6 +800,11 @@ g_variant_unref (GVariant *value)
@@ -2318,7 +3834,7 @@ index f5e9ddd..013f8d7 100644
  /**
   * g_variant_ref:
 diff --git a/glib/gvariant.c b/glib/gvariant.c
-index be2ffb8..687d0e6 100644
+index be2ffb860..687d0e6e0 100644
 --- a/glib/gvariant.c
 +++ b/glib/gvariant.c
 @@ -3094,6 +3094,11 @@ g_variant_iter_free (GVariantIter *iter)
@@ -2367,7 +3883,7 @@ index be2ffb8..687d0e6 100644
  
  /* Format strings {{{1 */
 diff --git a/glib/gvariant.h b/glib/gvariant.h
-index e7087a1..ce85e9f 100644
+index e7087a1f6..ce85e9fd2 100644
 --- a/glib/gvariant.h
 +++ b/glib/gvariant.h
 @@ -59,6 +59,7 @@ typedef enum
@@ -2403,7 +3919,7 @@ index e7087a1..ce85e9f 100644
  G_END_DECLS
  
 diff --git a/glib/gvarianttype.c b/glib/gvarianttype.c
-index 58a4a59..9df7ab9 100644
+index 58a4a59c9..9df7ab907 100644
 --- a/glib/gvarianttype.c
 +++ b/glib/gvarianttype.c
 @@ -376,6 +376,11 @@ g_variant_type_free (GVariantType *type)
@@ -2419,7 +3935,7 @@ index 58a4a59..9df7ab9 100644
  /**
   * g_variant_type_copy:
 diff --git a/glib/gvarianttype.h b/glib/gvarianttype.h
-index 6374957..d60de16 100644
+index 6374957f5..d60de16f2 100644
 --- a/glib/gvarianttype.h
 +++ b/glib/gvarianttype.h
 @@ -304,6 +304,7 @@ gboolean                        g_variant_type_string_scan              (const g
@@ -2430,8 +3946,278 @@ index 6374957..d60de16 100644
  GLIB_AVAILABLE_IN_ALL
  GVariantType *                  g_variant_type_copy                     (const GVariantType  *type);
  GLIB_AVAILABLE_IN_ALL
+diff --git a/glib/gwakeup.c b/glib/gwakeup.c
+index 35eb75f2d..63cb1948f 100644
+--- a/glib/gwakeup.c
++++ b/glib/gwakeup.c
+@@ -19,6 +19,8 @@
+  * Author: Ryan Lortie <desrt@desrt.ca>
+  */
+ 
++#ifndef __EMSCRIPTEN__
++
+ #include "config.h"
+ 
+ #include <stdint.h>
+@@ -360,3 +362,5 @@ g_wakeup_free (GWakeup *wakeup)
+ }
+ 
+ #endif /* !_WIN32 */
++
++#endif /* !__EMSCRIPTEN__ */
+diff --git a/glib/gwakeup.h b/glib/gwakeup.h
+index 0905fde2f..186e58527 100644
+--- a/glib/gwakeup.h
++++ b/glib/gwakeup.h
+@@ -22,6 +22,8 @@
+ #ifndef __G_WAKEUP_H__
+ #define __G_WAKEUP_H__
+ 
++#ifndef __EMSCRIPTEN__
++
+ #include <glib/gpoll.h>
+ 
+ typedef struct _GWakeup GWakeup;
+@@ -34,4 +36,6 @@ void            g_wakeup_get_pollfd     (GWakeup *wakeup,
+ void            g_wakeup_signal         (GWakeup *wakeup);
+ void            g_wakeup_acknowledge    (GWakeup *wakeup);
+ 
++#endif /* !__EMSCRIPTEN__ */
++
+ #endif
+diff --git a/glib/meson.build b/glib/meson.build
+index 7d2ec173f..65d5f6396 100644
+--- a/glib/meson.build
++++ b/glib/meson.build
+@@ -155,11 +155,11 @@ install_headers(glib_headers, install_dir : glib_includedir)
+ glib_unix_h = files('glib-unix.h')
+ 
+ glib_deprecated_headers = files(
+-  'deprecated/gallocator.h',
+-  'deprecated/gcache.h',
+-  'deprecated/gcompletion.h',
+-  'deprecated/gmain.h',
+-  'deprecated/grel.h',
++#   'deprecated/gallocator.h',
++#   'deprecated/gcache.h',
++#   'deprecated/gcompletion.h',
++#   'deprecated/gmain.h',
++#   'deprecated/grel.h',
+   'deprecated/gthread.h',
+ )
+ install_headers(glib_deprecated_headers,
+@@ -170,10 +170,10 @@ glib_sub_headers = files(
+   'glib-typeof.h',
+   'galloca.h',
+   'garray.h',
+-  'gasyncqueue.h',
++  # 'gasyncqueue.h',
+   'gatomic.h',
+-  'gbacktrace.h',
+-  'gbase64.h',
++  # 'gbacktrace.h',
++  # 'gbase64.h',
+   'gbitlock.h',
+   'gbookmarkfile.h',
+   'gbytes.h',
+@@ -189,11 +189,11 @@ glib_sub_headers = files(
+   'gfileutils.h',
+   'ggettext.h',
+   'ghash.h',
+-  'ghmac.h',
++  # 'ghmac.h',
+   'ghook.h',
+-  'ghostutils.h',
+-  'gi18n.h',
+-  'gi18n-lib.h',
++  # 'ghostutils.h',
++  # 'gi18n.h',
++  # 'gi18n-lib.h',
+   'giochannel.h',
+   'gkeyfile.h',
+   'glist.h',
+@@ -204,66 +204,66 @@ glib_sub_headers = files(
+   'gmem.h',
+   'gmessages.h',
+   'gnode.h',
+-  'goption.h',
+-  'gpathbuf.h',
++  # 'goption.h',
++  # 'gpathbuf.h',
+   'gpattern.h',
+   'gpoll.h',
+-  'gprimes.h',
++  # 'gprimes.h',
+   'gqsort.h',
+   'gquark.h',
+   'gqueue.h',
+-  'grand.h',
++  # 'grand.h',
+   'grcbox.h',
+   'grefcount.h',
+-  'grefstring.h',
++  # 'grefstring.h',
+   'gregex.h',
+   'gscanner.h',
+-  'gsequence.h',
+-  'gshell.h',
++  # 'gsequence.h',
++  # 'gshell.h',
+   'gslice.h',
+   'gslist.h',
+-  'gspawn.h',
++  # 'gspawn.h',
+   'gstdio.h',
+   'gstrfuncs.h',
+-  'gstrvbuilder.h',
++  # 'gstrvbuilder.h',
+   'gtestutils.h',
+   'gstring.h',
+-  'gstringchunk.h',
++  # 'gstringchunk.h',
+   'gthread.h',
+-  'gthreadpool.h',
++  # 'gthreadpool.h',
+   'gtimer.h',
+   'gtimezone.h',
+-  'gtrashstack.h',
++  # 'gtrashstack.h',
+   'gtree.h',
+   'gtypes.h',
+-  'guuid.h',
++  # 'guuid.h',
+   'gunicode.h',
+-  'guri.h',
++  # 'guri.h',
+   'gutils.h',
+   'gvarianttype.h',
+   'gvariant.h',
+   'gversion.h',
+-  'gwin32.h',
++  # 'gwin32.h',
+   'gprintf.h',
+ )
+ 
+ install_headers(glib_sub_headers, install_dir : glib_sub_includedir)
+ 
+ deprecated_sources = files(
+-  'deprecated/gallocator.c',
+-  'deprecated/gcache.c',
+-  'deprecated/gcompletion.c',
+-  'deprecated/grel.c',
+-  'deprecated/gthread-deprecated.c'
++  # 'deprecated/gallocator.c',
++  # 'deprecated/gcache.c',
++  # 'deprecated/gcompletion.c',
++  # 'deprecated/grel.c',
++  # 'deprecated/gthread-deprecated.c'
+ )
+ 
+ glib_sources += files(
+   'garcbox.c',
+   'garray.c',
+-  'gasyncqueue.c',
++  # 'gasyncqueue.c',
+   'gatomic.c',
+-  'gbacktrace.c',
+-  'gbase64.c',
++  # 'gbacktrace.c',
++  # 'gbase64.c',
+   'gbitlock.c',
+   'gbookmarkfile.c',
+   'gbytes.c',
+@@ -279,9 +279,9 @@ glib_sources += files(
+   'gfileutils.c',
+   'ggettext.c',
+   'ghash.c',
+-  'ghmac.c',
++  # 'ghmac.c',
+   'ghook.c',
+-  'ghostutils.c',
++  # 'ghostutils.c',
+   'giochannel.c',
+   'gkeyfile.c',
+   'glib-init.c',
+@@ -293,57 +293,57 @@ glib_sources += files(
+   'gmem.c',
+   'gmessages.c',
+   'gnode.c',
+-  'goption.c',
+-  'gpathbuf.c',
++  # 'goption.c',
++  # 'gpathbuf.c',
+   'gpattern.c',
+   'gpoll.c',
+-  'gprimes.c',
++  # 'gprimes.c',
+   'gqsort.c',
+   'gquark.c',
+   'gqueue.c',
+-  'grand.c',
++  # 'grand.c',
+   'grcbox.c',
+   'grefcount.c',
+-  'grefstring.c',
++  # 'grefstring.c',
+   'gregex.c',
+   'gscanner.c',
+-  'gsequence.c',
+-  'gshell.c',
++  # 'gsequence.c',
++  # 'gshell.c',
+   'gslice.c',
+   'gslist.c',
+   'gstdio.c',
+   'gstrfuncs.c',
+   'gstring.c',
+-  'gstringchunk.c',
+-  'gstrvbuilder.c',
++  # 'gstringchunk.c',
++  # 'gstrvbuilder.c',
+   'gtestutils.c',
+   'gthread.c',
+-  'gthreadpool.c',
++  # 'gthreadpool.c',
+   'gtimer.c',
+   'gtimezone.c',
+-  'gtrace.c',
+-  'gtrace-private.h',
+-  'gtranslit.c',
+-  'gtrashstack.c',
++  # 'gtrace.c',
++  # 'gtrace-private.h',
++  # 'gtranslit.c',
++  # 'gtrashstack.c',
+   'gtree.c',
+   'guniprop.c',
+   'gutf8.c',
+   'gunibreak.c',
+   'gunicollate.c',
+   'gunidecomp.c',
+-  'guri.c',
+-  'guriprivate.h',
++  # 'guri.c',
++  # 'guriprivate.h',
+   'gutils.c',
+-  'gutilsprivate.h',
+-  'guuid.c',
++  # 'gutilsprivate.h',
++  # 'guuid.c',
+   'gvariant.c',
+   'gvariant-core.c',
+-  'gvariant-parser.c',
++  # 'gvariant-parser.c',
+   'gvariant-serialiser.c',
+   'gvarianttypeinfo.c',
+   'gvarianttype.c',
+   'gversion.c',
+-  'gwakeup.c',
++  # 'gwakeup.c',
+   'gprintf.c',
+ )
+ 
 diff --git a/gobject/gbinding.c b/gobject/gbinding.c
-index 204dc44..f6d7ae3 100644
+index 204dc44db..f6d7ae307 100644
 --- a/gobject/gbinding.c
 +++ b/gobject/gbinding.c
 @@ -108,6 +108,7 @@
@@ -2556,9 +4342,23 @@ index 204dc44..f6d7ae3 100644
  
  static void
 diff --git a/gobject/gboxed.c b/gobject/gboxed.c
-index b9d60ed..4f6c96b 100644
+index 3868003db..4f6c96b85 100644
 --- a/gobject/gboxed.c
 +++ b/gobject/gboxed.c
+@@ -175,10 +175,10 @@ G_DEFINE_BOXED_TYPE (GMarkupParseContext, g_markup_parse_context, g_markup_parse
+ 
+ G_DEFINE_BOXED_TYPE (GThread, g_thread, g_thread_ref, g_thread_unref)
+ G_DEFINE_BOXED_TYPE (GChecksum, g_checksum, g_checksum_copy, g_checksum_free)
+-G_DEFINE_BOXED_TYPE (GUri, g_uri, g_uri_ref, g_uri_unref)
++// G_DEFINE_BOXED_TYPE (GUri, g_uri, g_uri_ref, g_uri_unref)
+ 
+-G_DEFINE_BOXED_TYPE (GOptionGroup, g_option_group, g_option_group_ref, g_option_group_unref)
+-G_DEFINE_BOXED_TYPE (GPatternSpec, g_pattern_spec, g_pattern_spec_copy, g_pattern_spec_free);
++// G_DEFINE_BOXED_TYPE (GOptionGroup, g_option_group, g_option_group_ref, g_option_group_unref)
++// G_DEFINE_BOXED_TYPE (GPatternSpec, g_pattern_spec, g_pattern_spec_copy, g_pattern_spec_free);
+ 
+ /* This one can't use G_DEFINE_BOXED_TYPE (GStrv, g_strv, g_strdupv, g_strfreev) */
+ GType
 @@ -190,8 +190,8 @@ g_strv_get_type (void)
      {
        GType g_define_type_id =
@@ -2571,7 +4371,7 @@ index b9d60ed..4f6c96b 100644
        g_once_init_leave (&static_g_define_type_id, g_define_type_id);
      }
 diff --git a/gobject/gclosure.c b/gobject/gclosure.c
-index 8d5d88d..00608f4 100644
+index 8d5d88d94..00608f423 100644
 --- a/gobject/gclosure.c
 +++ b/gobject/gclosure.c
 @@ -26,6 +26,7 @@
@@ -2756,7 +4556,7 @@ index 8d5d88d..00608f4 100644
  /**
   * g_closure_sink:
 diff --git a/gobject/gclosure.h b/gobject/gclosure.h
-index 3b139b0..3402792 100644
+index 3b139b062..34027925a 100644
 --- a/gobject/gclosure.h
 +++ b/gobject/gclosure.h
 @@ -243,10 +243,12 @@ GClosure* g_signal_type_cclosure_new		(GType          itype,
@@ -2773,7 +4573,7 @@ index 3b139b0..3402792 100644
  GOBJECT_AVAILABLE_IN_ALL
  GClosure* g_closure_new_simple			(guint		 sizeof_closure,
 diff --git a/gobject/genums.c b/gobject/genums.c
-index 1fe7f72..ee42bf4 100644
+index 1fe7f7211..ee42bf4e2 100644
 --- a/gobject/genums.c
 +++ b/gobject/genums.c
 @@ -71,8 +71,12 @@
@@ -2852,7 +4652,7 @@ index 1fe7f72..ee42bf4 100644
  /**
   * g_enum_get_value_by_name:
 diff --git a/gobject/gobject-autocleanups.h b/gobject/gobject-autocleanups.h
-index bddb3f2..c363029 100644
+index bddb3f290..c36302907 100644
 --- a/gobject/gobject-autocleanups.h
 +++ b/gobject/gobject-autocleanups.h
 @@ -23,11 +23,11 @@
@@ -2871,7 +4671,7 @@ index bddb3f2..c363029 100644
 -G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(GValue, g_value_unset)
 +G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(GValue, g_value_unset_adapter)
 diff --git a/gobject/gobject.c b/gobject/gobject.c
-index 661ecf8..07cb6bd 100644
+index 661ecf8c0..07cb6bd7a 100644
 --- a/gobject/gobject.c
 +++ b/gobject/gobject.c
 @@ -202,11 +202,17 @@ G_STATIC_ASSERT(G_STRUCT_OFFSET(GObject, qdata) == G_STRUCT_OFFSET(GObjectReal,
@@ -3043,7 +4843,7 @@ index 661ecf8..07cb6bd 100644
    carray = g_datalist_id_remove_no_notify (&object->qdata, quark_closure_array);
    if (!carray)
 diff --git a/gobject/gobject.h b/gobject/gobject.h
-index ea0157c..8dd278c 100644
+index ea0157c35..8dd278c7e 100644
 --- a/gobject/gobject.h
 +++ b/gobject/gobject.h
 @@ -526,8 +526,12 @@ GOBJECT_AVAILABLE_IN_2_70
@@ -3060,7 +4860,7 @@ index ea0157c..8dd278c 100644
  void	    g_object_weak_ref		      (GObject	      *object,
  					       GWeakNotify     notify,
 diff --git a/gobject/gparam.c b/gobject/gparam.c
-index 00d8b77..2093666 100644
+index 00d8b7742..209366696 100644
 --- a/gobject/gparam.c
 +++ b/gobject/gparam.c
 @@ -60,12 +60,16 @@
@@ -3167,7 +4967,7 @@ index 00d8b77..2093666 100644
    const GParamSpec *pspec1 = a, *pspec2 = b;
  
 diff --git a/gobject/gparam.h b/gobject/gparam.h
-index f65e76a..991d99a 100644
+index f65e76ad5..991d99a08 100644
 --- a/gobject/gparam.h
 +++ b/gobject/gparam.h
 @@ -297,6 +297,7 @@ GOBJECT_AVAILABLE_IN_ALL
@@ -3188,7 +4988,7 @@ index f65e76a..991d99a 100644
  
    /* class portion */
 diff --git a/gobject/gparamspecs.c b/gobject/gparamspecs.c
-index 7d3f779..3c5a4d4 100644
+index 7d3f77984..3c5a4d449 100644
 --- a/gobject/gparamspecs.c
 +++ b/gobject/gparamspecs.c
 @@ -66,7 +66,7 @@
@@ -3390,7 +5190,7 @@ index 7d3f779..3c5a4d4 100644
  {
    GParamSpecVariant *vspec = G_PARAM_SPEC_VARIANT (pspec);
 diff --git a/gobject/gsourceclosure.c b/gobject/gsourceclosure.c
-index 4b79b13..517a6c0 100644
+index 4b79b13ac..7af433c9c 100644
 --- a/gobject/gsourceclosure.c
 +++ b/gobject/gsourceclosure.c
 @@ -25,6 +25,9 @@
@@ -3435,7 +5235,7 @@ index 4b79b13..517a6c0 100644
  
  static void
  closure_callback_get (gpointer     cb_data,
-@@ -195,15 +200,18 @@ closure_callback_get (gpointer     cb_data,
+@@ -195,6 +200,9 @@ closure_callback_get (gpointer     cb_data,
  		      GSourceFunc *func,
  		      gpointer    *data)
  {
@@ -3445,16 +5245,6 @@ index 4b79b13..517a6c0 100644
    GSourceFunc closure_callback = source->source_funcs->closure_callback;
  
    if (!closure_callback)
-     {
-+#if defined(G_OS_UNIX) && !defined(G_PLATFORM_WASM)
-       if (source->source_funcs == &g_io_watch_funcs)
-         closure_callback = (GSourceFunc)io_watch_closure_callback;
-       else if (source->source_funcs == &g_child_watch_funcs)
-         closure_callback = (GSourceFunc)g_child_watch_closure_callback;
--#if defined(G_OS_UNIX) && !defined(G_PLATFORM_WASM)
-       else if (source->source_funcs == &g_unix_fd_source_funcs)
-         closure_callback = (GSourceFunc)g_unix_fd_source_closure_callback;
- #endif
 @@ -217,11 +225,12 @@ closure_callback_get (gpointer     cb_data,
  
    *func = closure_callback;
@@ -3470,12 +5260,13 @@ index 4b79b13..517a6c0 100644
    closure_callback_get
  };
  
-@@ -272,7 +281,12 @@ g_source_set_closure (GSource  *source,
+@@ -272,7 +281,13 @@ g_source_set_closure (GSource  *source,
  
    if (G_CLOSURE_NEEDS_MARSHAL (closure))
      {
 +
 +#ifdef __EMSCRIPTEN__
++      fprintf(stderr, "%s (%d): not implemented -ARL \n", __FUNCTION__, __LINE__);
 +      GClosureMarshal marshal = NULL;
 +#else
        GClosureMarshal marshal = (GClosureMarshal)source->source_funcs->closure_marshal;
@@ -3484,7 +5275,7 @@ index 4b79b13..517a6c0 100644
  	g_closure_set_marshal (closure, marshal);
        else if (source->source_funcs == &g_idle_funcs ||
 diff --git a/gobject/gtype.c b/gobject/gtype.c
-index dfb01ee..3d4d381 100644
+index dfb01eed1..617777025 100644
 --- a/gobject/gtype.c
 +++ b/gobject/gtype.c
 @@ -3476,7 +3476,8 @@ g_type_from_name (const gchar *name)
@@ -3497,8 +5288,17 @@ index dfb01ee..3d4d381 100644
    G_READ_UNLOCK (&type_rw_lock);
    
    return type;
+@@ -4673,7 +4674,7 @@ gobject_init_ctor (void)
+ #pragma G_DEFINE_CONSTRUCTOR_PRAGMA_ARGS(gobject_init_ctor)
+ #endif
+ 
+-G_DEFINE_CONSTRUCTOR (gobject_init_ctor)
++G_DEFINE_CONSTRUCTOR (gobject_init_ctor, 105)
+ 
+ static void
+ gobject_init_ctor (void)
 diff --git a/gobject/gtype.h b/gobject/gtype.h
-index 3305a59..ac9adf2 100644
+index 3305a597e..ac9adf23b 100644
 --- a/gobject/gtype.h
 +++ b/gobject/gtype.h
 @@ -2160,10 +2160,10 @@ static void     type_name##_class_intern_init (gpointer klass, \
@@ -3549,7 +5349,7 @@ index 3305a59..ac9adf2 100644
                                         (GInstanceInitFunc)NULL, \
                                         (GTypeFlags) 0); \
 diff --git a/gobject/gtypemodule.c b/gobject/gtypemodule.c
-index ce6b02d..36c1ef6 100644
+index ce6b02dae..36c1ef61a 100644
 --- a/gobject/gtypemodule.c
 +++ b/gobject/gtypemodule.c
 @@ -129,16 +129,27 @@ g_type_module_class_init (GTypeModuleClass *class)
@@ -3612,7 +5412,7 @@ index ce6b02d..36c1ef6 100644
  static void
  g_type_module_use_plugin (GTypePlugin *plugin)
 diff --git a/gobject/gtypemodule.h b/gobject/gtypemodule.h
-index f3096a9..0bbe024 100644
+index f3096a939..0bbe02418 100644
 --- a/gobject/gtypemodule.h
 +++ b/gobject/gtypemodule.h
 @@ -274,6 +274,7 @@ GOBJECT_AVAILABLE_IN_ALL
@@ -3624,7 +5424,7 @@ index f3096a9..0bbe024 100644
  void     g_type_module_set_name       (GTypeModule          *module,
                                         const gchar          *name);
 diff --git a/gobject/gvalue.c b/gobject/gvalue.c
-index 10885da..1afc143 100644
+index 10885dad8..1afc143ab 100644
 --- a/gobject/gvalue.c
 +++ b/gobject/gvalue.c
 @@ -313,6 +313,11 @@ g_value_unset (GValue *value)
@@ -3640,7 +5440,7 @@ index 10885da..1afc143 100644
  /**
   * g_value_fits_pointer:
 diff --git a/gobject/gvalue.h b/gobject/gvalue.h
-index 2ac5ca1..b5b9e36 100644
+index 2ac5ca189..b5b9e36f4 100644
 --- a/gobject/gvalue.h
 +++ b/gobject/gvalue.h
 @@ -141,6 +141,7 @@ GOBJECT_AVAILABLE_IN_ALL
@@ -3651,3 +5451,74 @@ index 2ac5ca1..b5b9e36 100644
  GOBJECT_AVAILABLE_IN_ALL
  void		g_value_set_instance	(GValue	      *value,
  					 gpointer      instance);
+diff --git a/gthread/gthread-impl.c b/gthread/gthread-impl.c
+index f85da8f82..dc444c790 100644
+--- a/gthread/gthread-impl.c
++++ b/gthread/gthread-impl.c
+@@ -48,3 +48,4 @@ g_thread_init_with_errorcheck_mutexes (gpointer vtable)
+   g_assert (vtable == NULL);
+   g_warning ("GThread system no longer supports errorcheck mutexes.");
+ }
++
+diff --git a/meson.build b/meson.build
+index 5df61c223..774cdfd0f 100644
+--- a/meson.build
++++ b/meson.build
+@@ -93,11 +93,11 @@ glib_libexecdir = join_paths(glib_prefix, get_option('libexecdir'))
+ glib_datadir = join_paths(glib_prefix, get_option('datadir'))
+ glib_pkgdatadir = join_paths(glib_datadir, 'glib-2.0')
+ glib_includedir = join_paths(glib_prefix, get_option('includedir'), 'glib-2.0')
+-if get_option('gio_module_dir') != ''
+-  glib_giomodulesdir = join_paths(glib_prefix, get_option('gio_module_dir'))
+-else
+-  glib_giomodulesdir = join_paths(glib_libdir, 'gio', 'modules')
+-endif
++# if get_option('gio_module_dir') != ''
++#   glib_giomodulesdir = join_paths(glib_prefix, get_option('gio_module_dir'))
++# else
++#   glib_giomodulesdir = join_paths(glib_libdir, 'gio', 'modules')
++# endif
+ 
+ if get_option('multiarch')
+   # For multiarch/multilib distributions, install each architecture's
+@@ -507,7 +507,9 @@ if cc.get_id() == 'gcc' or cc.get_id() == 'clang' or cc.get_id() == 'emscripten'
+     '-Wno-unused-parameter',
+     # Due to pervasive use of things like GPOINTER_TO_UINT(), we do not support
+     # building with -Wbad-function-cast.
+-    '-Wno-cast-function-type',
++    #'-Wno-cast-function-type',
++    '-Wbad-function-cast',
++    '-Wcast-function-type',
+     # Due to function casts through (void*) we cannot support -Wpedantic:
+     # https://wiki.gnome.org/Projects/GLib/CompilerRequirements#Function_pointer_conversions.
+     '-Wno-pedantic',
+@@ -526,7 +528,8 @@ if cc.get_id() == 'gcc' or cc.get_id() == 'clang' or cc.get_id() == 'emscripten'
+     '-Wstrict-prototypes',
+     # Due to pervasive use of things like GPOINTER_TO_UINT(), we do not support
+     # building with -Wbad-function-cast.
+-    '-Wno-bad-function-cast',
++    '-Wbad-function-cast',
++    '-Wcast-function-type',
+     '-Werror=implicit-function-declaration',
+     '-Werror=missing-prototypes',
+     '-Werror=pointer-sign',
+@@ -2085,8 +2088,8 @@ else
+ endif
+ 
+ # Import the gvdb sources as a subproject to avoid having the copylib in-tree
+-subproject('gvdb')
+-gvdb_dep = dependency('gvdb')
++# subproject('gvdb')
++# gvdb_dep = dependency('gvdb')
+ 
+ libm = cc.find_library('m', required : false)
+ libffi_dep = dependency('libffi', version : '>= 3.0.0')
+@@ -2477,7 +2480,7 @@ summary({
+   'pkgdatadir' : glib_pkgdatadir,
+   'datadir' : glib_datadir,
+   'includedir' : glib_includedir,
+-  'giomodulesdir' : glib_giomodulesdir,
++  #'giomodulesdir' : glib_giomodulesdir,
+   'localstatedir' : glib_localstatedir,
+   'runstatedir' : glib_runstatedir,
+ }, section: 'Directories')

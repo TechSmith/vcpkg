@@ -14,10 +14,7 @@ if(VCPKG_TARGET_IS_EMSCRIPTEN)
            fix-build-race-on-gio.patch # https://gitlab.gnome.org/GNOME/glib/-/merge_requests/3512
            tsc-allow-threadpriority-to-fail-windows.patch 
            emscripten.patch
-           remove-most-of-gio.patch
-           reduce-glib-size.patch
-           remove-func-ptr-casts.patch
-           force-ctor-order.patch
+           glib-without-func-ptr-casts-for-pango-wasm.patch
    )
 else()
    vcpkg_extract_source_archive(SOURCE_PATH
