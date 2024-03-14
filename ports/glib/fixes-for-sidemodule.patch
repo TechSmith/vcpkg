@@ -1,0 +1,312 @@
+diff --git a/glib/gbookmarkfile.c b/glib/gbookmarkfile.c
+index f494cbc..a0bbeda 100644
+--- a/glib/gbookmarkfile.c
++++ b/glib/gbookmarkfile.c
+@@ -3628,6 +3628,10 @@ g_bookmark_file_set_application_info (GBookmarkFile  *bookmark,
+                                       GDateTime      *stamp,
+                                       GError        **error)
+ {
++#ifdef __EMSCRIPTEN__
++  fprintf (stderr, "%s (%d): Not implemented\n", __FUNCTION__, __LINE__);
++  return TRUE;
++#else
+   BookmarkItem *item;
+   BookmarkAppInfo *ai;
+ 
+@@ -3707,6 +3711,7 @@ g_bookmark_file_set_application_info (GBookmarkFile  *bookmark,
+   bookmark_item_touch_modified (item);
+ 
+   return TRUE;
++#endif
+ }
+ 
+ /* expands the application's command line */
+@@ -3851,6 +3856,10 @@ g_bookmark_file_get_application_info (GBookmarkFile  *bookmark,
+                                       GDateTime     **stamp,
+                                       GError        **error)
+ {
++#ifdef __EMSCRIPTEN__
++  fprintf (stderr, "%s (%d): Not implemented\n", __FUNCTION__, __LINE__);
++  return TRUE;
++#else
+   BookmarkItem *item;
+   BookmarkAppInfo *ai;
+ 
+@@ -3914,6 +3923,7 @@ g_bookmark_file_get_application_info (GBookmarkFile  *bookmark,
+     *stamp = ai->stamp;
+ 
+   return TRUE;
++#endif
+ }
+ 
+ /**
+diff --git a/glib/glib-autocleanups.h b/glib/glib-autocleanups.h
+index 014e9bb..2502fcc 100644
+--- a/glib/glib-autocleanups.h
++++ b/glib/glib-autocleanups.h
+@@ -95,6 +95,7 @@ G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(GVariantDict, g_variant_dict_clear)
+ G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(GMutex, g_mutex_clear)
+ G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(GQueue, g_queue_clear)
+ G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(GCond, g_cond_clear)
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(GRand, g_rand_free_adapter)
+ 
+ #ifndef __EMSCRIPTEN__
+ 
+@@ -107,7 +108,6 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC(GNode, g_node_destroy)
+ G_DEFINE_AUTOPTR_CLEANUP_FUNC(GOptionContext, g_option_context_free)
+ G_DEFINE_AUTOPTR_CLEANUP_FUNC(GOptionGroup, g_option_group_unref)
+ G_DEFINE_AUTOPTR_CLEANUP_FUNC(GSequence, g_sequence_free)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GRand, g_rand_free)
+ G_DEFINE_AUTOPTR_CLEANUP_FUNC(GUri, g_uri_unref)
+ G_DEFINE_AUTOPTR_CLEANUP_FUNC (GPathBuf, g_path_buf_free)
+ G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC (GPathBuf, g_path_buf_clear)
+diff --git a/glib/glib-unix.c b/glib/glib-unix.c
+index c1c6bce..243f82f 100644
+--- a/glib/glib-unix.c
++++ b/glib/glib-unix.c
+@@ -189,6 +189,7 @@ g_unix_set_fd_nonblocking (gint       fd,
+  *
+  * Since: 2.30
+  */
++#ifndef __EMSCRIPTEN__
+ GSource *
+ g_unix_signal_source_new (int signum)
+ {
+@@ -198,6 +199,7 @@ g_unix_signal_source_new (int signum)
+ 
+   return _g_main_create_unix_signal_watch (signum);
+ }
++#endif
+ 
+ /**
+  * g_unix_signal_add_full: (rename-to g_unix_signal_add)
+@@ -223,6 +225,10 @@ g_unix_signal_add_full (int            priority,
+                         gpointer       user_data,
+                         GDestroyNotify notify)
+ {
++#ifdef __EMSCRIPTEN__
++  fprintf (stderr, "%s (%d): Not Implemented - ARL\n", __FUNCTION__, __LINE__);
++  return 0;
++#else
+   guint id;
+   GSource *source;
+ 
+@@ -236,6 +242,7 @@ g_unix_signal_add_full (int            priority,
+   g_source_unref (source);
+ 
+   return id;
++#endif
+ }
+ 
+ /**
+@@ -313,6 +320,10 @@ GSource *
+ g_unix_fd_source_new (gint         fd,
+                       GIOCondition condition)
+ {
++#ifdef __EMSCRIPTEN__
++  fprintf(stderr, "%s (%d): I commented this out - ARL\n", __FUNCTION__, __LINE__);
++  return NULL;
++#else
+   GUnixFDSource *fd_source;
+   GSource *source;
+ 
+@@ -323,6 +334,7 @@ g_unix_fd_source_new (gint         fd,
+   fd_source->tag = g_source_add_unix_fd (source, fd, condition);
+ 
+   return source;
++#endif
+ }
+ 
+ /**
+diff --git a/glib/glib-unix.h b/glib/glib-unix.h
+index 7cf4f0d..4c30315 100644
+--- a/glib/glib-unix.h
++++ b/glib/glib-unix.h
+@@ -69,7 +69,9 @@ gboolean g_unix_set_fd_nonblocking (gint       fd,
+                                     GError   **error);
+ 
+ GLIB_AVAILABLE_IN_2_30
++#ifndef __EMSCRIPTEN__
+ GSource *g_unix_signal_source_new  (gint signum);
++#endif
+ 
+ GLIB_AVAILABLE_IN_2_30
+ guint    g_unix_signal_add_full    (gint           priority,
+diff --git a/glib/glib.h b/glib/glib.h
+index 25443a5..392cbda 100644
+--- a/glib/glib.h
++++ b/glib/glib.h
+@@ -39,7 +39,6 @@
+ #include <glib/goption.h>
+ #include <glib/gpathbuf.h>
+ #include <glib/gprimes.h>
+-#include <glib/grand.h>
+ #include <glib/grefstring.h>
+ #include <glib/gsequence.h>
+ #include <glib/gshell.h>
+@@ -87,6 +86,7 @@
+ #include <glib/genviron.h>
+ #include <glib/gdataset.h>
+ #include <glib/gscanner.h>
++#include <glib/grand.h>
+ #include <glib/gfileutils.h>
+ #include <glib/gmarkup.h>
+ #include <glib/ggettext.h>
+diff --git a/glib/gmain.c b/glib/gmain.c
+index 656a2d5..5a27ffb 100644
+--- a/glib/gmain.c
++++ b/glib/gmain.c
+@@ -2771,6 +2771,7 @@ g_clear_handle_id (guint            *tag_ptr,
+  *
+  * Since: 2.36
+  **/
++#ifndef __EMSCRIPTEN__
+ gpointer
+ g_source_add_unix_fd (GSource      *source,
+                       gint          fd,
+@@ -2804,6 +2805,7 @@ g_source_add_unix_fd (GSource      *source,
+ 
+   return poll_fd;
+ }
++#endif /* NOT __EMSCRIPTEN__ */
+ 
+ /**
+  * g_source_modify_unix_fd:
+diff --git a/glib/gmain.h b/glib/gmain.h
+index a8dc66c..9ae2986 100644
+--- a/glib/gmain.h
++++ b/glib/gmain.h
+@@ -672,9 +672,11 @@ gint64               g_source_get_ready_time (GSource        *source);
+ 
+ #ifdef G_OS_UNIX
+ GLIB_AVAILABLE_IN_2_36
++#ifndef __EMSCRIPTEN__
+ gpointer             g_source_add_unix_fd    (GSource        *source,
+                                               gint            fd,
+                                               GIOCondition    events);
++#endif
+ GLIB_AVAILABLE_IN_2_36
+ void                 g_source_modify_unix_fd (GSource        *source,
+                                               gpointer        tag,
+diff --git a/glib/grand.c b/glib/grand.c
+index 5fb4457..d9f0be3 100644
+--- a/glib/grand.c
++++ b/glib/grand.c
+@@ -301,6 +301,11 @@ g_rand_free (GRand *rand)
+ 
+   g_free (rand);
+ }
++void
++g_rand_free_adapter (gpointer rand)
++{
++  g_rand_free ((GRand*) rand);
++}
+ 
+ /**
+  * g_rand_copy:
+diff --git a/glib/grand.h b/glib/grand.h
+index c4ae956..5079341 100644
+--- a/glib/grand.h
++++ b/glib/grand.h
+@@ -55,6 +55,7 @@ GLIB_AVAILABLE_IN_ALL
+ GRand*  g_rand_new            (void);
+ GLIB_AVAILABLE_IN_ALL
+ void    g_rand_free           (GRand   *rand_);
++void    g_rand_free_adapter   (gpointer rand_);
+ GLIB_AVAILABLE_IN_ALL
+ GRand*  g_rand_copy           (GRand   *rand_);
+ GLIB_AVAILABLE_IN_ALL
+diff --git a/glib/gstring.c b/glib/gstring.c
+index ad6b922..dee82f8 100644
+--- a/glib/gstring.c
++++ b/glib/gstring.c
+@@ -545,9 +545,13 @@ g_string_append_uri_escaped (GString     *string,
+                              const gchar *reserved_chars_allowed,
+                              gboolean     allow_utf8)
+ {
++#ifdef __EMSCRIPTEN__
++  fprintf (stderr, "%s (%d): Not implemented - ARL\n", __FUNCTION__, __LINE__);
++#else
+   _uri_encoder (string, (const guchar *) unescaped, strlen (unescaped),
+                 reserved_chars_allowed, allow_utf8);
+   return string;
++#endif
+ }
+ 
+ /**
+diff --git a/glib/meson.build b/glib/meson.build
+index 65d5f63..e88dbb0 100644
+--- a/glib/meson.build
++++ b/glib/meson.build
+@@ -212,7 +212,7 @@ glib_sub_headers = files(
+   'gqsort.h',
+   'gquark.h',
+   'gqueue.h',
+-  # 'grand.h',
++  'grand.h',
+   'grcbox.h',
+   'grefcount.h',
+   # 'grefstring.h',
+@@ -301,7 +301,7 @@ glib_sources += files(
+   'gqsort.c',
+   'gquark.c',
+   'gqueue.c',
+-  # 'grand.c',
++  'grand.c',
+   'grcbox.c',
+   'grefcount.c',
+   # 'grefstring.c',
+@@ -323,7 +323,7 @@ glib_sources += files(
+   'gtimezone.c',
+   # 'gtrace.c',
+   # 'gtrace-private.h',
+-  # 'gtranslit.c',
++  'gtranslit.c',
+   # 'gtrashstack.c',
+   'gtree.c',
+   'guniprop.c',
+diff --git a/glib/tests/unix.c b/glib/tests/unix.c
+index 0c1ec21..c554bb8 100644
+--- a/glib/tests/unix.c
++++ b/glib/tests/unix.c
+@@ -248,6 +248,10 @@ test_sighup_add_remove (void)
+ static gboolean
+ nested_idle (gpointer data)
+ {
++#ifdef __EMSCRIPTEN__
++  fprintf ( stderr, "%s (%d) - Not Implemented - ARL", __FUNCTION__, __LINE__);
++  return G_SOURCE_REMOVE;
++#else
+   GMainLoop *nested;
+   GMainContext *context;
+   GSource *source;
+@@ -268,6 +272,7 @@ nested_idle (gpointer data)
+   g_main_context_unref (context);
+ 
+   return G_SOURCE_REMOVE;
++#endif
+ }
+ 
+ static void
+diff --git a/gobject/tests/closure.c b/gobject/tests/closure.c
+index b761825..e340a35 100644
+--- a/gobject/tests/closure.c
++++ b/gobject/tests/closure.c
+@@ -182,6 +182,9 @@ closure_quit_callback (gpointer     user_data)
+ static void
+ test_closure_signal (void)
+ {
++#ifdef __EMSCRIPTEN__
++  fprintf (stderr, "test_closure_signal NOT Implemented - ARL\n");
++#else
+   GSource *source;
+ 
+   g_idle_add_full (G_PRIORITY_LOW, send_usr1, NULL, NULL);
+@@ -189,6 +192,7 @@ test_closure_signal (void)
+   source = g_unix_signal_source_new (SIGUSR1);
+   test_source (source, G_CALLBACK (closure_quit_callback));
+   g_source_unref (source);
++#endif
+ }
+ #endif
+ 

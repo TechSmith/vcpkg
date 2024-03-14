@@ -15,6 +15,7 @@ if(VCPKG_TARGET_IS_EMSCRIPTEN)
            tsc-allow-threadpriority-to-fail-windows.patch 
            emscripten.patch
            glib-without-func-ptr-casts-for-pango-wasm.patch
+           fixes-for-sidemodule.patch
    )
 else()
    vcpkg_extract_source_archive(SOURCE_PATH

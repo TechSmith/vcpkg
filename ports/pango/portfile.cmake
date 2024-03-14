@@ -9,6 +9,7 @@ vcpkg_from_gitlab(
     PATCHES
       emscripten.patch
       remove-func-ptr-casts.patch
+      add-in-func-for-sidemodule.patch
 ) 
 
 # Fix for https://github.com/microsoft/vcpkg/issues/31573
