@@ -15,6 +15,7 @@ vcpkg_from_gitlab(
         fix-static-missing-lib-msimg32.patch
         fix-HAVE_FT_PALETTE_SELECT-assumption.patch
         disable-lzo.patch
+        fix-emscripten-linux-build.patch
         ${PATCHES}
 )
 
