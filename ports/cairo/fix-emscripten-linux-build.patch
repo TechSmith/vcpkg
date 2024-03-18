@@ -1,0 +1,32 @@
+diff --git a/meson.build b/meson.build
+index a238763..810cdca 100644
+--- a/meson.build
++++ b/meson.build
+@@ -819,7 +819,7 @@ else
+   cairoboilerplate_dep = dependency('', required: false)
+ endif
+ 
+-subdir('util')
++#subdir('util')
+ 
+ if not get_option('tests').disabled() and feature_conf.get('CAIRO_HAS_PNG_FUNCTIONS', 0) == 1
+   subdir('test')
+diff --git a/src/cairo-ps-surface.c b/src/cairo-ps-surface.c
+index a37af4c..8e1c0f9 100644
+--- a/src/cairo-ps-surface.c
++++ b/src/cairo-ps-surface.c
+@@ -103,12 +103,14 @@
+ #endif
+ 
+ #ifndef HAVE_CTIME_R
++#ifndef __EMSCRIPTEN__
+ static char *ctime_r(const time_t *timep, char *buf)
+ {
+     (void)buf;
+     return ctime(timep);
+ }
+ #endif
++#endif
+ 
+ /**
+  * SECTION:cairo-ps

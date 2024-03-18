@@ -20,6 +20,7 @@ vcpkg_configure_meson(
         -Ddoc=disabled
         -Dcache-build=disabled
         -Dtests=disabled
+        -Dtools=disabled
 )
 #https://www.freedesktop.org/software/fontconfig/fontconfig-user.html
 # Adding OPTIONS for e.g. baseconfig-dir etc. won't work since meson will try to install into those dirs!
