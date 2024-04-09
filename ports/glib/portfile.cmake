@@ -11,6 +11,8 @@ vcpkg_extract_source_archive(SOURCE_PATH
         use-libiconv-on-windows.patch
         libintl.patch
         tsc-allow-threadpriority-to-fail-windows.patch 
+        tsc-disable-libproc.patch 
+        tsc-remove-internal-check.patch
 )
 
 if(APPLE)
